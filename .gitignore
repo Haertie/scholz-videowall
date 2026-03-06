@@ -1,0 +1,14 @@
+# Konfigurationsdateien mit sensiblen Daten
+*.yaml
+*.yml
+
+# Benutzerdatenbank – wird manuell auf GitHub Pages hochgeladen
+# users.enc ist NICHT ignoriert, da es auf GitHub Pages gehört
+# Lokale Testdateien
+*.local.enc
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
