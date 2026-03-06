@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scholz Videowall v1.0.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --border:   rgba(255,255,255,.08);
+  --accent:   #00e5ff;
+  --online:   #00e676;
+  --offline:  #ff1744;
+  --text:     #c8d0e0;
+  --text-dim: #4a5568;
+  --mono:     'Share Tech Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── LOGIN SCREEN ── */
+#login-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.login-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; width: 340px; padding: 32px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.login-logo { text-align: center; margin-bottom: 24px; }
+.login-logo img { height: 34px; filter: brightness(0) invert(1); }
+.login-logo p { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--text-dim); margin-top: 8px; }
+.login-error { font-family: var(--mono); font-size: 11px; color: var(--offline); text-align: center; min-height: 18px; margin-bottom: 8px; letter-spacing: 1px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase; }
+.field input, .field select {
+  width: 100%; background: rgba(0,0,0,.3); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 8px 10px; outline: none; transition: border-color .2s;
+}
+.field input:focus, .field select:focus { border-color: var(--accent); }
+.field-hint { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 4px; border: 1px solid var(--border);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+  cursor: pointer; background: none; color: var(--text); transition: all .2s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-accent { background: var(--accent); color: #000; border-color: var(--accent); }
+.btn-accent:hover { background: #33eeff; }
+.btn-muted { color: var(--text-dim); }
+.btn-full { width: 100%; justify-content: center; }
+.login-hint { text-align: center; font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 14px; }
+
+/* ── HEADER ── */
+#header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 52px; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.header-logo img { height: 28px; filter: brightness(0) invert(1); }
+.sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.controls-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 2px; }
+#clock { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 2px; margin-left: auto; }
+.layout-btn { background: none; border: 1px solid var(--border); border-radius: 3px; padding: 3px 5px; cursor: pointer; transition: all .2s; }
+.layout-btn:hover, .layout-btn.active { border-color: var(--accent); }
+.layout-btn.active svg { stroke: var(--accent); }
+.user-badge { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+.role-tag { padding: 2px 7px; border-radius: 3px; font-size: 10px; letter-spacing: 1px; border: 1px solid; }
+.role-tag.admin { background: rgba(0,229,255,.1); color: var(--accent); border-color: var(--accent); }
+.role-tag.user  { background: rgba(255,255,255,.04); color: var(--text-dim); border-color: var(--border); }
+
+/* ── GRID ── */
+#grid {
+  flex: 1; display: grid; gap: 8px; padding: 12px;
+  overflow: hidden; position: relative;
+  transition: grid-template-columns .3s, grid-template-rows .3s;
+}
+#grid.layout-1x1    { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+#grid.layout-2x1    { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+#grid.layout-2x2    { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+#grid.layout-1plus3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+#grid.layout-1plus3 .cam-card:first-child { grid-row: 1 / span 2; }
+#grid.layout-3x2    { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+#grid.layout-2x3    { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+#grid.layout-3x3    { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+#grid.layout-4x3    { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+#grid.layout-3x4    { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr 1fr; }
+
+/* ── CAMERA CARD ── */
+.cam-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; overflow: hidden; display: flex;
+  flex-direction: column; position: relative; transition: border-color .2s;
+}
+.cam-card:hover { border-color: rgba(0,229,255,.3); }
+.cam-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 10px; background: rgba(0,0,0,.3);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.cam-name-wrap { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; transition: background .3s; }
+.status-dot.online  { background: var(--online);  box-shadow: 0 0 6px var(--online); }
+.status-dot.offline { background: var(--offline); box-shadow: 0 0 6px var(--offline); }
+.cam-name { font-family: var(--mono); font-size: 12px; color: #fff; letter-spacing: 1px; }
+.cam-meta { font-family: var(--mono); font-size: 10px; color: var(--text-dim); }
+.cam-actions { display: flex; gap: 4px; }
+.cam-actions button {
+  background: none; border: none; cursor: pointer; padding: 2px 5px;
+  border-radius: 3px; color: var(--text-dim); font-size: 12px; transition: color .2s;
+}
+.cam-actions button:hover { color: var(--accent); background: rgba(0,229,255,.1); }
+.cam-body { flex: 1; position: relative; background: #000; overflow: hidden; }
+.cam-body img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cam-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; cursor: pointer;
+}
+.cam-placeholder .ph-icon {
+  width: 48px; height: 48px; border: 2px dashed var(--border);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); font-size: 20px; transition: border-color .2s;
+}
+.cam-placeholder:hover .ph-icon { border-color: var(--accent); color: var(--accent); }
+.cam-placeholder p { font-family: var(--mono); font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+.rec-badge {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(0,0,0,.6); border: 1px solid rgba(0,230,118,.3);
+  border-radius: 3px; padding: 2px 6px;
+  font-family: var(--mono); font-size: 10px; color: var(--online);
+  display: flex; align-items: center; gap: 4px; letter-spacing: 1px;
+}
+.rec-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--online); animation: blink 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.cam-card.fullscreen-active { position: fixed; inset: 0; z-index: 999; border-radius: 0; border: none; }
+
+/* ── GRID RESIZERS ── */
+.col-resizer { position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize; z-index: 50; background: transparent; transform: translateX(-5px); transition: background .15s; }
+.row-resizer { position: absolute; left: 0; right: 0; height: 10px; cursor: row-resize; z-index: 50; background: transparent; transform: translateY(-5px); transition: background .15s; }
+.col-resizer:hover, .col-resizer.dragging { background: rgba(0,229,255,.25); }
+.row-resizer:hover, .row-resizer.dragging { background: rgba(0,229,255,.25); }
+.cam-card .corner-resizer { position: absolute; bottom: 4px; right: 4px; width: 14px; height: 14px; cursor: nwse-resize; z-index: 60; opacity: 0; transition: opacity .2s; }
+.cam-card:hover .corner-resizer { opacity: 1; }
+
+/* ── FOOTER ── */
+#footer {
+  height: 28px; display: flex; align-items: center; padding: 0 16px; gap: 16px;
+  background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0;
+}
+#footer span { font-family: var(--mono); font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+#footer .online-count { color: var(--online); }
+#footer .offline-count { color: var(--offline); }
+
+/* ── MODALS ── */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  display: none; align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-backdrop.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 28px; width: 420px; max-height: 90vh; overflow-y: auto;
+}
+.modal h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 3px; color: var(--accent); margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── VENDOR BADGE ── */
+.vendor-badge {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  padding: 1px 5px; border-radius: 2px; border: 1px solid var(--border); color: var(--text-dim);
+}
+
+/* ── ADMIN PANEL ── */
+.admin-modal { width: 560px; }
+.user-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.user-table th { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.user-table td { font-family: var(--mono); font-size: 12px; color: var(--text); padding: 8px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+.admin-section { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--accent); margin: 20px 0 8px; }
+.inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.inline-form .field { margin-bottom: 0; flex: 1; min-width: 90px; }
+.tag-admin { color: var(--accent); }
+.tag-user  { color: var(--text-dim); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--surface); border: 1px solid var(--accent); color: var(--accent);
+  font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
+  padding: 10px 20px; border-radius: 4px; z-index: 9998;
+  opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMi4wLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iRWJlbmVfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAzOTEuMiA2My45IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAzOTEuMiA2My45OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojMTA3RThFO30NCjwvc3R5bGU+DQo8Zz4NCgk8Zz4NCgkJPHJlY3QgeD0iMjM3LjciIHk9IjIuOCIgd2lkdGg9IjEiIGhlaWdodD0iNTYuNiIvPg0KCTwvZz4NCgk8cGF0aCBkPSJNMzg4LjQsNTYuN2gtMi43djIuN2gyLjdWNTYuN3ogTTM3OC4yLDU5LjRjLTAuMiwwLjYtMC40LDEuMS0wLjcsMS40cy0wLjgsMC42LTEuNCwwLjZjLTAuMywwLTAuNywwLTEuMi0wLjFsMC4yLDIuMQ0KCQljMC41LDAuMSwxLDAuMiwxLjYsMC4yYzAuNSwwLDEtMC4xLDEuNC0wLjJjMC40LTAuMSwwLjgtMC4zLDEtMC41YzAuMy0wLjIsMC41LTAuNSwwLjgtMC44YzAuMi0wLjMsMC40LTAuOCwwLjctMS40bDAuNy0xLjgNCgkJbDMuNy0xMGgtMi44bC0yLjQsNy40bC0yLjUtNy40aC0yLjlMMzc4LjIsNTkuNHogTTM3MS4zLDQ5di0zLjdsLTIuOCwxLjZWNDloLTEuM3YyLjJoMS4zdjQuNWMwLDEsMCwxLjYsMC4xLDEuOQ0KCQljMC4xLDAuNCwwLjIsMC44LDAuNCwxLjFjMC4yLDAuMywwLjUsMC41LDAuOSwwLjZzMC44LDAuMiwxLjMsMC4yYzAuOCwwLDEuNS0wLjEsMi4yLTAuNGwtMC4yLTIuMWMtMC41LDAuMi0wLjgsMC4zLTEuMSwwLjMNCgkJYy0wLjIsMC0wLjMsMC0wLjUtMC4xYy0wLjEtMC4xLTAuMi0wLjItMC4yLTAuM3MtMC4xLTAuNi0wLjEtMS41di00LjJoMS45VjQ5SDM3MS4zeiBNMzY1LjUsNDloLTIuN3YxMC40aDIuN1Y0OXogTTM2NS41LDQ1LjENCgkJaC0yLjd2Mi41aDIuN1Y0NS4xeiBNMzYwLDQ1LjFoLTIuN3YxNC4zaDIuN1Y0NS4xeiBNMzU0LjUsNDloLTIuN3YxMC40aDIuN1Y0OXogTTM1NC41LDQ1LjFoLTIuN3YyLjVoMi43VjQ1LjF6IE0zNDIuNyw1MS43DQoJCWMwLjQtMC41LDEtMC44LDEuNi0wLjhjMC43LDAsMS4yLDAuMywxLjYsMC44czAuNiwxLjQsMC42LDIuNmMwLDEuMS0wLjIsMS45LTAuNiwyLjRzLTAuOSwwLjgtMS41LDAuOGMtMC44LDAtMS40LTAuNC0xLjktMS4xDQoJCWMtMC4zLTAuNS0wLjUtMS4zLTAuNS0yLjRDMzQyLDUyLjksMzQyLjMsNTIuMiwzNDIuNyw1MS43IE0zNDEuOSw1OS40di0xLjVjMC40LDAuNiwwLjksMSwxLjUsMS4zczEuMiwwLjQsMS44LDAuNA0KCQljMS4yLDAsMi4yLTAuNSwzLjEtMS40YzAuOC0xLDEuMy0yLjMsMS4zLTQuMWMwLTEuNy0wLjQtMy0xLjItMy45Yy0wLjgtMC45LTEuOS0xLjQtMy4xLTEuNHMtMi4yLDAuNS0zLDEuNFY0NWgtMi43djE0LjNoMi4zVjU5LjQNCgkJeiBNMzM2LjYsNDloLTIuN3YxMC40aDIuN1Y0OXogTTMzNi42LDQ1LjFoLTIuN3YyLjVoMi43VjQ1LjF6IE0zMjMuNSw1OC44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTENCgkJczEuMi0xLjUsMS4yLTIuNWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNzMC41LDAuNSwwLjYsMC45bDIuNi0wLjVjLTAuMy0wLjktMC43LTEuNi0xLjQtMi4xYy0wLjctMC41LTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMzMjIuMSw1Ny40LDMyMi43LDU4LjIsMzIzLjUsNTguOCBNMzIwLDUzYzAtMC44LTAuMS0xLjQtMC4yLTEuOGMtMC4xLTAuNC0wLjMtMC44LTAuNS0xLjJjLTAuMy0wLjMtMC42LTAuNi0xLjEtMC44DQoJCXMtMS4xLTAuMy0xLjctMC4zYy0xLjQsMC0yLjUsMC42LTMuNCwxLjhWNDloLTIuNXYxMC40aDIuN3YtNC43YzAtMS4yLDAuMS0yLDAuMi0yLjRzMC40LTAuOCwwLjgtMWMwLjQtMC4zLDAuOC0wLjQsMS4zLTAuNA0KCQljMC40LDAsMC43LDAuMSwxLDAuM3MwLjUsMC40LDAuNiwwLjhjMC4xLDAuMywwLjIsMS4xLDAuMiwyLjJ2NS4zaDIuN1Y1M0gzMjB6IE0zMDEuMyw1MS44YzAuNS0wLjUsMS4xLTAuOCwxLjgtMC44DQoJCXMxLjMsMC4zLDEuOCwwLjhzMC43LDEuMywwLjcsMi4zcy0wLjIsMS44LTAuNywyLjRjLTAuNSwwLjUtMS4xLDAuOC0xLjgsMC44cy0xLjMtMC4zLTEuOC0wLjhzLTAuNy0xLjMtMC43LTIuNA0KCQlDMzAwLjUsNTMuMiwzMDAuOCw1Mi40LDMwMS4zLDUxLjggTTI5OC40LDU3LjFjMC41LDAuOCwxLjEsMS41LDIsMS45czEuOCwwLjYsMi43LDAuNmMxLjUsMCwyLjgtMC41LDMuOC0xLjVzMS41LTIuMywxLjUtMy45DQoJCWMwLTEuNi0wLjUtMi44LTEuNS0zLjljLTEtMS0yLjMtMS41LTMuOS0xLjVjLTEsMC0xLjksMC4yLTIuOCwwLjdjLTAuOCwwLjUtMS41LDEuMS0xLjksMnMtMC43LDEuNy0wLjcsMi42DQoJCUMyOTcuNyw1NS4zLDI5Ny45LDU2LjMsMjk4LjQsNTcuMSBNMjg5LjMsNTEuN2MwLjQtMC41LDEtMC44LDEuNy0wLjhjMC42LDAsMS4yLDAuMywxLjYsMC44czAuNywxLjMsMC43LDIuNGMwLDEuMi0wLjIsMi0wLjYsMi41DQoJCXMtMSwwLjgtMS42LDAuOGMtMC43LDAtMS4yLTAuMy0xLjctMC44Yy0wLjUtMC42LTAuNy0xLjQtMC43LTIuNkMyODguNyw1MywyODguOSw1Mi4zLDI4OS4zLDUxLjcgTTI4Niw2My4zaDIuN3YtNS4yDQoJCWMwLjUsMC42LDEsMC45LDEuNSwxLjJjMC41LDAuMiwxLDAuMywxLjYsMC4zYzEuMiwwLDIuMi0wLjUsMy4xLTEuNGMwLjgtMSwxLjMtMi4zLDEuMy00cy0wLjQtMy0xLjMtMy45cy0xLjktMS40LTMuMS0xLjQNCgkJYy0wLjcsMC0xLjMsMC4yLTEuOSwwLjVzLTEsMC43LTEuMywxLjNWNDlIMjg2VjYzLjN6IE0yNzUuNyw1OC44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTFzMS4yLTEuNSwxLjItMi41DQoJCWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNjMC4zLDAuMiwwLjUsMC41LDAuNiwwLjlsMi42LTAuNWMtMC4zLTAuOS0wLjctMS42LTEuNC0yLjFzLTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMyNzQuMyw1Ny40LDI3NC44LDU4LjIsMjc1LjcsNTguOCBNMjY1LjksNTMuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjdzMSwwLjIsMS40LDAuNg0KCQljMC40LDAuNCwwLjYsMSwwLjYsMS44aC00LjFWNTMuM3ogTTI2OS4xLDU3LjJjLTAuMywwLjItMC43LDAuNC0xLjEsMC40Yy0wLjYsMC0xLjItMC4yLTEuNi0wLjdzLTAuNi0xLjEtMC43LTEuOWg2LjkNCgkJYzAtMi4xLTAuNC0zLjctMS4zLTQuN3MtMi4xLTEuNS0zLjctMS41Yy0xLjQsMC0yLjUsMC41LTMuNCwxLjVzLTEuMywyLjMtMS4zLDRjMCwxLjQsMC4zLDIuNiwxLDMuNmMwLjksMS4yLDIuMiwxLjgsNCwxLjgNCgkJYzEuMSwwLDIuMS0wLjMsMi44LTAuOGMwLjgtMC41LDEuMy0xLjMsMS43LTIuM2wtMi43LTAuNUMyNjkuNyw1Ni42LDI2OS40LDU3LDI2OS4xLDU3LjIgTTI1Mi40LDQ3LjVoMi4zYzEuMiwwLDEuOSwwLDIuMSwwDQoJCWMwLjUsMC4xLDAuOCwwLjMsMS4xLDAuNmMwLjMsMC4zLDAuNCwwLjcsMC40LDEuMmMwLDAuNC0wLjEsMC44LTAuMywxLjFjLTAuMiwwLjMtMC41LDAuNS0wLjgsMC42cy0xLjIsMC4yLTIuNiwwLjJoLTIuMXYtMy43DQoJCUgyNTIuNHogTTI1Mi40LDU5LjR2LTZoMC42YzAuNywwLDEuMSwwLjEsMS41LDAuMmMwLjMsMC4xLDAuNiwwLjMsMC45LDAuNmMwLjMsMC4zLDAuOCwxLDEuNSwyLjFsMi4xLDMuMWgzLjVsLTEuNy0yLjgNCgkJYy0wLjctMS4xLTEuMi0xLjktMS42LTIuM2MtMC40LTAuNC0wLjktMC44LTEuNS0xLjJjMS4zLTAuMiwyLjItMC42LDIuOC0xLjNjMC42LTAuNywwLjktMS42LDAuOS0yLjdjMC0wLjgtMC4yLTEuNi0wLjYtMi4zDQoJCXMtMS0xLjEtMS43LTEuNGMtMC43LTAuMy0xLjgtMC40LTMuMy0wLjRoLTYuMXYxNC4zaDIuN1Y1OS40eiIvPg0KCTxwYXRoIGQ9Ik0zNTQuNSwzNS43aC0yLjd2Mi43aDIuN1YzNS43eiBNMzQxLjMsMzcuOGMwLjgsMC42LDEuOSwwLjksMy40LDAuOWMxLjYsMCwyLjctMC4zLDMuNS0xczEuMi0xLjUsMS4yLTIuNQ0KCQljMC0wLjktMC4zLTEuNi0wLjktMmMtMC42LTAuNS0xLjYtMC45LTMuMS0xLjJzLTIuMy0wLjYtMi42LTAuOGMtMC4yLTAuMS0wLjMtMC4zLTAuMy0wLjVzMC4xLTAuNCwwLjMtMC42DQoJCWMwLjMtMC4yLDAuOC0wLjMsMS42LTAuM2MwLjYsMCwxLDAuMSwxLjMsMC4zYzAuMywwLjIsMC41LDAuNSwwLjYsMC45bDIuNi0wLjVjLTAuMy0wLjktMC43LTEuNi0xLjQtMi4xcy0xLjctMC43LTMuMi0wLjcNCgkJcy0yLjYsMC4zLTMuMywwLjljLTAuNywwLjYtMS4xLDEuNC0xLjEsMi4zYzAsMSwwLjQsMS44LDEuMiwyLjNjMC42LDAuNCwyLDAuOCw0LjIsMS4zYzAuNSwwLjEsMC44LDAuMiwwLjksMC40DQoJCWMwLjEsMC4xLDAuMiwwLjMsMC4yLDAuNWMwLDAuMy0wLjEsMC41LTAuNCwwLjdjLTAuNCwwLjMtMC45LDAuNC0xLjYsMC40Yy0wLjYsMC0xLjEtMC4xLTEuNS0wLjRzLTAuNi0wLjctMC43LTEuMmwtMi44LDAuNA0KCQlDMzM5LjksMzYuNCwzNDAuNCwzNy4yLDM0MS4zLDM3LjggTTMzMS41LDMyLjNjMC0wLjcsMC4yLTEuMywwLjYtMS44YzAuNC0wLjQsMC45LTAuNywxLjUtMC43czEsMC4yLDEuNCwwLjZzMC42LDEsMC42LDEuOA0KCQlMMzMxLjUsMzIuM0wzMzEuNSwzMi4zeiBNMzM0LjgsMzYuMmMtMC4zLDAuMi0wLjcsMC40LTEuMSwwLjRjLTAuNiwwLTEuMi0wLjItMS42LTAuN3MtMC42LTEuMS0wLjctMS45aDYuOWMwLTIuMS0wLjQtMy43LTEuMy00LjcNCgkJcy0yLjEtMS41LTMuNy0xLjVjLTEuNCwwLTIuNSwwLjUtMy40LDEuNXMtMS4zLDIuMy0xLjMsNGMwLDEuNCwwLjMsMi42LDEsMy42YzAuOSwxLjIsMi4yLDEuOCw0LDEuOGMxLjEsMCwyLjEtMC4zLDIuOC0wLjgNCgkJYzAuOC0wLjUsMS4zLTEuMywxLjctMi4zbC0yLjctMC41QzMzNS4zLDM1LjYsMzM1LDM2LDMzNC44LDM2LjIgTTMyNS42LDI4LjZjLTAuNy0wLjUtMS44LTAuOC0zLTAuOGMtMS41LDAtMi44LDAuNS0zLjcsMS40DQoJCWMtMC45LDEtMS40LDIuMy0xLjQsNHMwLjUsMywxLjQsNHMyLjEsMS40LDMuNiwxLjRjMS4zLDAsMi40LTAuMywzLjItMC45YzAuOC0wLjYsMS4zLTEuNiwxLjYtMi44bC0yLjctMC41DQoJCWMtMC4xLDAuNy0wLjQsMS4yLTAuNywxLjVjLTAuMywwLjMtMC44LDAuNC0xLjMsMC40Yy0wLjcsMC0xLjMtMC4zLTEuNy0wLjhjLTAuNC0wLjUtMC42LTEuNC0wLjYtMi42YzAtMS4xLDAuMi0xLjksMC42LTIuNA0KCQlzMS0wLjcsMS42LTAuN2MwLjUsMCwwLjksMC4xLDEuMywwLjRjMC4zLDAuMywwLjUsMC43LDAuNiwxLjJsMi43LTAuNUMzMjYuOCwzMCwzMjYuMywyOS4xLDMyNS42LDI4LjYgTTMxMywzNS4yDQoJCWMwLTEuOCwwLjEtMi45LDAuMi0zLjVjMC4yLTAuNiwwLjQtMC45LDAuNi0xLjFjMC4zLTAuMiwwLjYtMC4zLDEtMC4zczAuOCwwLjIsMS4zLDAuNGwwLjktMi40Yy0wLjYtMC4zLTEuMi0wLjUtMS44LTAuNQ0KCQljLTAuNCwwLTAuOCwwLjEtMS4yLDAuM2MtMC4zLDAuMi0wLjcsMC43LTEuMiwxLjRWMjhoLTIuNXYxMC40aDIuN1YzNS4yeiBNMzA3LjYsMzguNFYyOGgtMi43djQuNGMwLDEuNS0wLjEsMi40LTAuMiwyLjgNCgkJYy0wLjEsMC40LTAuNCwwLjctMC44LDFzLTAuOCwwLjQtMS4zLDAuNGMtMC40LDAtMC43LTAuMS0xLTAuM3MtMC41LTAuNS0wLjYtMC44cy0wLjItMS4yLTAuMi0yLjdWMjhoLTIuN3Y2LjYNCgkJYzAsMSwwLjEsMS43LDAuNCwyLjNjMC4yLDAuNiwwLjYsMSwxLjIsMS4zczEuMiwwLjUsMS45LDAuNWMwLjcsMCwxLjMtMC4yLDEuOS0wLjVzMS4xLTAuOCwxLjUtMS4zdjEuNkwzMDcuNiwzOC40TDMwNy42LDM4LjR6DQoJCSBNMjg4LjksMzAuOGMwLjUtMC41LDEuMS0wLjgsMS44LTAuOHMxLjMsMC4zLDEuOCwwLjhzMC43LDEuMywwLjcsMi4zcy0wLjIsMS44LTAuNywyLjRjLTAuNSwwLjUtMS4xLDAuOC0xLjgsMC44DQoJCXMtMS4zLTAuMy0xLjgtMC44cy0wLjctMS4zLTAuNy0yLjRDMjg4LjIsMzIuMiwyODguNCwzMS40LDI4OC45LDMwLjggTTI4NiwzNi4xYzAuNCwwLjgsMS4xLDEuNSwyLDEuOXMxLjgsMC42LDIuNywwLjYNCgkJYzEuNSwwLDIuOC0wLjUsMy44LTEuNXMxLjUtMi4zLDEuNS0zLjljMC0xLjYtMC41LTIuOC0xLjUtMy45Yy0xLTEtMi4zLTEuNS0zLjktMS41Yy0xLDAtMS45LDAuMi0yLjgsMC43Yy0wLjgsMC41LTEuNSwxLjEtMS45LDINCgkJcy0wLjcsMS43LTAuNywyLjZDMjg1LjMsMzQuMywyODUuNiwzNS4zLDI4NiwzNi4xIE0yNzUuNywzNy44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTFzMS4yLTEuNSwxLjItMi41DQoJCWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNjMC4zLDAuMiwwLjUsMC41LDAuNiwwLjlsMi42LTAuNWMtMC4zLTAuOS0wLjctMS42LTEuNC0yLjFzLTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMyNzQuMywzNi40LDI3NC44LDM3LjIsMjc1LjcsMzcuOCBNMjY1LjksMzIuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjdzMSwwLjIsMS40LDAuNnMwLjYsMSwwLjYsMS44DQoJCUwyNjUuOSwzMi4zTDI2NS45LDMyLjN6IE0yNjkuMSwzNi4yYy0wLjMsMC4yLTAuNywwLjQtMS4xLDAuNGMtMC42LDAtMS4yLTAuMi0xLjYtMC43cy0wLjYtMS4xLTAuNy0xLjloNi45YzAtMi4xLTAuNC0zLjctMS4zLTQuNw0KCQlzLTIuMS0xLjUtMy43LTEuNWMtMS40LDAtMi41LDAuNS0zLjQsMS41cy0xLjMsMi4zLTEuMyw0YzAsMS40LDAuMywyLjYsMSwzLjZjMC45LDEuMiwyLjIsMS44LDQsMS44YzEuMSwwLDIuMS0wLjMsMi44LTAuOA0KCQljMC44LTAuNSwxLjMtMS4zLDEuNy0yLjNsLTIuNy0wLjVDMjY5LjcsMzUuNiwyNjkuNCwzNiwyNjkuMSwzNi4yIE0yNTIuNCwyNi41aDIuM2MxLjIsMCwxLjksMCwyLjEsMGMwLjUsMC4xLDAuOCwwLjMsMS4xLDAuNg0KCQljMC4zLDAuMywwLjQsMC43LDAuNCwxLjJjMCwwLjQtMC4xLDAuOC0wLjMsMS4xYy0wLjIsMC4zLTAuNSwwLjUtMC44LDAuNnMtMS4yLDAuMi0yLjYsMC4yaC0yLjF2LTMuN0gyNTIuNHogTTI1Mi40LDM4LjR2LTZoMC42DQoJCWMwLjcsMCwxLjEsMC4xLDEuNSwwLjJjMC4zLDAuMSwwLjYsMC4zLDAuOSwwLjZjMC4zLDAuMywwLjgsMSwxLjUsMi4xbDIuMSwzLjFoMy41bC0xLjctMi44Yy0wLjctMS4xLTEuMi0xLjktMS42LTIuMw0KCQljLTAuNC0wLjQtMC45LTAuOC0xLjUtMS4yYzEuMy0wLjIsMi4yLTAuNiwyLjgtMS4zYzAuNi0wLjcsMC45LTEuNiwwLjktMi43YzAtMC44LTAuMi0xLjYtMC42LTIuM2MtMC40LTAuNy0xLTEuMS0xLjctMS40DQoJCXMtMS44LTAuNC0zLjMtMC40aC02LjF2MTQuM2gyLjdWMzguNHoiLz4NCgk8cGF0aCBkPSJNMzQ2LjEsMTQuN2gtMi43djIuN2gyLjdWMTQuN3ogTTMzMy45LDkuN2MwLjQtMC41LDEtMC44LDEuNi0wLjhjMC43LDAsMS4yLDAuMywxLjcsMC44YzAuNCwwLjUsMC43LDEuMywwLjcsMi40DQoJCWMwLDEtMC4yLDEuOC0wLjcsMi4zcy0xLDAuOC0xLjcsMC44Yy0wLjYsMC0xLjItMC4zLTEuNi0wLjhzLTAuNi0xLjMtMC42LTIuNFMzMzMuNSwxMC4yLDMzMy45LDkuNyBNMzMwLjgsMTguNA0KCQljMCwwLjksMC40LDEuNywxLjEsMi4zYzAuNywwLjYsMiwwLjksMy43LDAuOWMwLjksMCwxLjctMC4xLDIuMy0wLjNjMC42LTAuMiwxLjEtMC41LDEuNS0wLjhzMC42LTAuOCwwLjktMS40DQoJCWMwLjItMC42LDAuMy0xLjUsMC4zLTIuN1Y3SDMzOHYxLjVjLTAuOC0xLjEtMS45LTEuNy0zLjItMS43Yy0xLjIsMC0yLjMsMC41LTMuMSwxLjRjLTAuOCwwLjktMS4zLDIuMi0xLjMsNGMwLDEuNCwwLjMsMi41LDEsMy41DQoJCWMwLjgsMS4yLDEuOSwxLjgsMy4zLDEuOGMxLjIsMCwyLjMtMC42LDMuMS0xLjd2MS41YzAsMC42LDAsMS0wLjEsMS4zcy0wLjMsMC42LTAuNSwwLjdjLTAuNCwwLjItMC45LDAuMy0xLjYsMC4zDQoJCWMtMC42LDAtMS0wLjEtMS4yLTAuM2MtMC4yLTAuMS0wLjMtMC40LTAuNC0wLjhsLTMuMS0wLjRDMzMwLjgsMTguMiwzMzAuOCwxOC4zLDMzMC44LDE4LjQgTTMyOC4zLDExYzAtMC44LTAuMS0xLjQtMC4yLTEuOA0KCQljLTAuMS0wLjQtMC4zLTAuOC0wLjUtMS4yYy0wLjMtMC4zLTAuNi0wLjYtMS4xLTAuOGMtMC41LTAuMi0xLjEtMC4zLTEuNy0wLjNjLTEuNCwwLTIuNSwwLjYtMy40LDEuOFY3aC0yLjV2MTAuNGgyLjd2LTQuNw0KCQljMC0xLjIsMC4xLTIsMC4yLTIuNHMwLjQtMC44LDAuOC0xYzAuNC0wLjMsMC44LTAuNCwxLjMtMC40YzAuNCwwLDAuNywwLjEsMSwwLjNzMC41LDAuNCwwLjYsMC44YzAuMSwwLjMsMC4yLDEuMSwwLjIsMi4ydjUuM2gyLjcNCgkJVjExSDMyOC4zeiBNMzE2LjEsN2gtMi43djEwLjRoMi43Vjd6IE0zMTYuMSwzLjFoLTIuN3YyLjVoMi43VjMuMXogTTMxMC42LDMuMWgtMi43djE0LjNoMi43VjMuMXogTTMwNC4xLDcuNg0KCQljLTAuNy0wLjUtMS44LTAuOC0zLTAuOGMtMS41LDAtMi44LDAuNS0zLjcsMS40Yy0wLjksMS0xLjQsMi4zLTEuNCw0czAuNSwzLDEuNCw0czIuMSwxLjQsMy42LDEuNGMxLjMsMCwyLjQtMC4zLDMuMi0wLjkNCgkJYzAuOC0wLjYsMS4zLTEuNiwxLjYtMi44bC0yLjctMC41Yy0wLjEsMC43LTAuNCwxLjItMC43LDEuNWMtMC4zLDAuMy0wLjgsMC40LTEuMywwLjRjLTAuNywwLTEuMy0wLjMtMS43LTAuOA0KCQljLTAuNC0wLjUtMC42LTEuNC0wLjYtMi42YzAtMS4xLDAuMi0xLjksMC42LTIuNHMxLTAuNywxLjYtMC43YzAuNSwwLDAuOSwwLjEsMS4zLDAuNGMwLjMsMC4zLDAuNSwwLjcsMC42LDEuMmwyLjctMC41DQoJCUMzMDUuNCw5LDMwNC45LDguMSwzMDQuMSw3LjYgTTI4OC42LDE3LjRjLTAuMiwwLjYtMC40LDEuMS0wLjcsMS40cy0wLjgsMC42LTEuNCwwLjZjLTAuMywwLTAuNywwLTEuMi0wLjFsMC4yLDIuMQ0KCQljMC41LDAuMSwxLDAuMiwxLjYsMC4yYzAuNSwwLDEtMC4xLDEuNC0wLjJzMC44LTAuMywxLTAuNWMwLjMtMC4yLDAuNS0wLjUsMC44LTAuOGMwLjItMC4zLDAuNC0wLjgsMC43LTEuNGwwLjctMS44bDMuNy0xMGgtMi44DQoJCWwtMi40LDcuNEwyODcuNiw3aC0yLjlMMjg4LjYsMTcuNHogTTI4Mi40LDcuNmMtMC43LTAuNS0xLjgtMC44LTMtMC44Yy0xLjUsMC0yLjgsMC41LTMuNywxLjRjLTAuOSwxLTEuNCwyLjMtMS40LDRzMC41LDMsMS40LDQNCgkJczIuMSwxLjQsMy42LDEuNGMxLjMsMCwyLjQtMC4zLDMuMi0wLjljMC44LTAuNiwxLjMtMS42LDEuNi0yLjhsLTIuNy0wLjVjLTAuMSwwLjctMC40LDEuMi0wLjcsMS41Yy0wLjMsMC4zLTAuOCwwLjQtMS4zLDAuNA0KCQljLTAuNywwLTEuMy0wLjMtMS43LTAuOGMtMC40LTAuNS0wLjYtMS40LTAuNi0yLjZjMC0xLjEsMC4yLTEuOSwwLjYtMi40czEtMC43LDEuNi0wLjdjMC41LDAsMC45LDAuMSwxLjMsMC40DQoJCWMwLjMsMC4zLDAuNSwwLjcsMC42LDEuMmwyLjctMC41QzI4My43LDksMjgzLjIsOC4xLDI4Mi40LDcuNiBNMjY1LjksMTEuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjcNCgkJczEsMC4yLDEuNCwwLjZjMC40LDAuNCwwLjYsMSwwLjYsMS44TDI2NS45LDExLjNMMjY1LjksMTEuM3ogTTI2OS4xLDE1LjJjLTAuMywwLjItMC43LDAuNC0xLjEsMC40Yy0wLjYsMC0xLjItMC4yLTEuNi0wLjcNCgkJcy0wLjYtMS4xLTAuNy0xLjloNi45YzAtMi4xLTAuNC0zLjctMS4zLTQuN3MtMi4xLTEuNS0zLjctMS41Yy0xLjQsMC0yLjUsMC41LTMuNCwxLjVzLTEuMywyLjMtMS4zLDRjMCwxLjQsMC4zLDIuNiwxLDMuNg0KCQljMC45LDEuMiwyLjIsMS44LDQsMS44YzEuMSwwLDIuMS0wLjMsMi44LTAuOGMwLjgtMC41LDEuMy0xLjMsMS43LTIuM2wtMi43LTAuNUMyNjkuNywxNC42LDI2OS40LDE1LDI2OS4xLDE1LjIgTTI1Mi40LDUuNWgyLjMNCgkJYzEuMiwwLDEuOSwwLDIuMSwwYzAuNSwwLjEsMC44LDAuMywxLjEsMC42YzAuMywwLjMsMC40LDAuNywwLjQsMS4yYzAsMC40LTAuMSwwLjgtMC4zLDEuMWMtMC4yLDAuMy0wLjUsMC41LTAuOCwwLjYNCgkJcy0xLjIsMC4yLTIuNiwwLjJoLTIuMVY1LjVIMjUyLjR6IE0yNTIuNCwxNy40di02aDAuNmMwLjcsMCwxLjEsMC4xLDEuNSwwLjJjMC4zLDAuMSwwLjYsMC4zLDAuOSwwLjZjMC4zLDAuMywwLjgsMSwxLjUsMi4xDQoJCWwyLjEsMy4xaDMuNWwtMS43LTIuOGMtMC43LTEuMS0xLjItMS45LTEuNi0yLjNjLTAuNC0wLjQtMC45LTAuOC0xLjUtMS4yYzEuMy0wLjIsMi4yLTAuNiwyLjgtMS4zYzAuNi0wLjcsMC45LTEuNiwwLjktMi43DQoJCWMwLTAuOC0wLjItMS42LTAuNi0yLjNzLTEtMS4xLTEuNy0xLjRTMjU3LjMsMywyNTUuOCwzaC02LjF2MTQuM2gyLjdWMTcuNHoiLz4NCjwvZz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iNC44LDIyLjkgMTUuMSwzNC45IDE1LjEsNDEuMSAyMC45LDQxLjEgMjAuOSwzOC4zIDI1LjYsMzguMyAyNS42LDMxLjggMTQuMywzMS44IDYuNiwyMi45ICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSIyOS42LDMuMyAzNy4xLDEwLjggMzcuMSwxNy43IDI1LjgsMTcuNyAyNS44LDEyIDE0LjUsMTIgMTQuNSwyMS4xIDIwLjgsMjEuMSAyMC44LDE4LjEgMjUuNSwxOC4xIA0KCTM3LDMyLjQgMzcsNDQuNyAyOC42LDUyLjkgMTIuOSw1Mi45IDQuNyw0NC43IDIuOSw0NC43IDE3LjgsNTkuNSAzMi4zLDU5LjUgNDMuOCw0Ny45IDQzLjgsMzguMiAzMS43LDIzIDQzLjUsMjMgNDMuNSwxNS4yIA0KCTMxLjQsMy4zICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSI1My43LDExLjcgNjQsMTEuNyA2NCwxOS41IDYwLDE5LjUgNjAsNDEuMSA1My43LDQxLjEgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjQyLDQ0LjUgNDAuNCw0NC41IDU1LjIsNTkuNCA3MC40LDU5LjQgODEuOSw0Ny43IDgxLjksMzkuNCA3NS4xLDMyLjYgNzUuMSw0NC41IDY2LjgsNTIuOCA1MC4zLDUyLjggDQoJIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjY2LjgsMyA3NS4xLDExLjIgNzUuMSwyMi43IDY1LjQsMjIuNyA3Mi4zLDI5LjYgODEuOSwyOS42IDgxLjksMTYuMSA2OC42LDMgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjkzLjEsMTkuNSA5OS41LDE5LjUgOTkuNSw5LjMgOTMuMSwzICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSI5Mi44LDMxLjggMTA0LjksMzEuOCAxMDQuOSwzOCA5OS4yLDM4IDk5LjIsNTkuNCA4OC44LDU5LjQgODIuMSw1Mi41IDkyLjgsNTIuNSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTE1LjcsMi44IDExNS43LDUyLjUgMTA0LjksNTIuNSAxMTEuOSw1OS40IDEyMi4yLDU5LjQgMTIyLjIsOS4yICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSIxMzMuOCwxMS43IDE0NC4xLDExLjcgMTQ0LjEsMTkuNSAxNDAuMSwxOS41IDE0MC4xLDQxLjEgMTMzLjgsNDEuMSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTQ3LDMgMTU1LjIsMTEuMSAxNTUuMiw0NC41IDE0Ni45LDUyLjggMTMwLjQsNTIuOCAxMjIuMSw0NC41IDEyMC4zLDQ0LjUgMTM1LjIsNTkuNCAxNTAuNCw1OS40IA0KCTE2Miw0Ny43IDE2MiwxNi40IDE0OC43LDMgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjE3My4yLDIuOCAxNzMuMiw0MS4xIDE3OS43LDQxLjEgMTc5LjcsOSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTg1LjYsNDEuMSAxOTIsNDcuNSAxOTIsNTkuNCAxNjguOSw1OS40IDE2Mi4xLDUyLjUgMTg1LjUsNTIuNSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMjA0LjgsMTkuNSAxOTguNSwxOS41IDE5MiwxMS43IDIwOS4yLDExLjcgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjIyMC4zLDExLjggMjAzLjgsNDEuMyAyMTEuMiw0MS4zIDIyNi44LDE0LjMgMjI2LjgsOS4yIDIyMC4zLDIuOCAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMjIwLjMsNDEuMSAyMjYuOCw0Ny41IDIyNi44LDU5LjQgMTk4LjcsNTkuNCAxOTEuOCw1Mi41IDIyMC4zLDUyLjUgIi8+DQo8L3N2Zz4NCg==" alt="Scholz Recycling">
+      <p>VIDEOWALL · LOGIN</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="field">
+      <label>Benutzername</label>
+      <input type="text" id="login-user" autocomplete="username" placeholder="benutzername">
+    </div>
+    <div class="field">
+      <label>Passwort</label>
+      <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-accent btn-full" id="loginBtn" style="margin-top:8px;">ANMELDEN</button>
+    <div class="login-hint">Standard: admin / admin</div>
+  </div>
+</div>
+
+<!-- ── HEADER ────────────────────────────────────────────────────────────── -->
+<div id="header">
+  <div class="header-logo"><img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyMi4wLjEsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iRWJlbmVfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAzOTEuMiA2My45IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCAzOTEuMiA2My45OyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+DQo8c3R5bGUgdHlwZT0idGV4dC9jc3MiPg0KCS5zdDB7ZmlsbDojMTA3RThFO30NCjwvc3R5bGU+DQo8Zz4NCgk8Zz4NCgkJPHJlY3QgeD0iMjM3LjciIHk9IjIuOCIgd2lkdGg9IjEiIGhlaWdodD0iNTYuNiIvPg0KCTwvZz4NCgk8cGF0aCBkPSJNMzg4LjQsNTYuN2gtMi43djIuN2gyLjdWNTYuN3ogTTM3OC4yLDU5LjRjLTAuMiwwLjYtMC40LDEuMS0wLjcsMS40cy0wLjgsMC42LTEuNCwwLjZjLTAuMywwLTAuNywwLTEuMi0wLjFsMC4yLDIuMQ0KCQljMC41LDAuMSwxLDAuMiwxLjYsMC4yYzAuNSwwLDEtMC4xLDEuNC0wLjJjMC40LTAuMSwwLjgtMC4zLDEtMC41YzAuMy0wLjIsMC41LTAuNSwwLjgtMC44YzAuMi0wLjMsMC40LTAuOCwwLjctMS40bDAuNy0xLjgNCgkJbDMuNy0xMGgtMi44bC0yLjQsNy40bC0yLjUtNy40aC0yLjlMMzc4LjIsNTkuNHogTTM3MS4zLDQ5di0zLjdsLTIuOCwxLjZWNDloLTEuM3YyLjJoMS4zdjQuNWMwLDEsMCwxLjYsMC4xLDEuOQ0KCQljMC4xLDAuNCwwLjIsMC44LDAuNCwxLjFjMC4yLDAuMywwLjUsMC41LDAuOSwwLjZzMC44LDAuMiwxLjMsMC4yYzAuOCwwLDEuNS0wLjEsMi4yLTAuNGwtMC4yLTIuMWMtMC41LDAuMi0wLjgsMC4zLTEuMSwwLjMNCgkJYy0wLjIsMC0wLjMsMC0wLjUtMC4xYy0wLjEtMC4xLTAuMi0wLjItMC4yLTAuM3MtMC4xLTAuNi0wLjEtMS41di00LjJoMS45VjQ5SDM3MS4zeiBNMzY1LjUsNDloLTIuN3YxMC40aDIuN1Y0OXogTTM2NS41LDQ1LjENCgkJaC0yLjd2Mi41aDIuN1Y0NS4xeiBNMzYwLDQ1LjFoLTIuN3YxNC4zaDIuN1Y0NS4xeiBNMzU0LjUsNDloLTIuN3YxMC40aDIuN1Y0OXogTTM1NC41LDQ1LjFoLTIuN3YyLjVoMi43VjQ1LjF6IE0zNDIuNyw1MS43DQoJCWMwLjQtMC41LDEtMC44LDEuNi0wLjhjMC43LDAsMS4yLDAuMywxLjYsMC44czAuNiwxLjQsMC42LDIuNmMwLDEuMS0wLjIsMS45LTAuNiwyLjRzLTAuOSwwLjgtMS41LDAuOGMtMC44LDAtMS40LTAuNC0xLjktMS4xDQoJCWMtMC4zLTAuNS0wLjUtMS4zLTAuNS0yLjRDMzQyLDUyLjksMzQyLjMsNTIuMiwzNDIuNyw1MS43IE0zNDEuOSw1OS40di0xLjVjMC40LDAuNiwwLjksMSwxLjUsMS4zczEuMiwwLjQsMS44LDAuNA0KCQljMS4yLDAsMi4yLTAuNSwzLjEtMS40YzAuOC0xLDEuMy0yLjMsMS4zLTQuMWMwLTEuNy0wLjQtMy0xLjItMy45Yy0wLjgtMC45LTEuOS0xLjQtMy4xLTEuNHMtMi4yLDAuNS0zLDEuNFY0NWgtMi43djE0LjNoMi4zVjU5LjQNCgkJeiBNMzM2LjYsNDloLTIuN3YxMC40aDIuN1Y0OXogTTMzNi42LDQ1LjFoLTIuN3YyLjVoMi43VjQ1LjF6IE0zMjMuNSw1OC44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTENCgkJczEuMi0xLjUsMS4yLTIuNWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNzMC41LDAuNSwwLjYsMC45bDIuNi0wLjVjLTAuMy0wLjktMC43LTEuNi0xLjQtMi4xYy0wLjctMC41LTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMzMjIuMSw1Ny40LDMyMi43LDU4LjIsMzIzLjUsNTguOCBNMzIwLDUzYzAtMC44LTAuMS0xLjQtMC4yLTEuOGMtMC4xLTAuNC0wLjMtMC44LTAuNS0xLjJjLTAuMy0wLjMtMC42LTAuNi0xLjEtMC44DQoJCXMtMS4xLTAuMy0xLjctMC4zYy0xLjQsMC0yLjUsMC42LTMuNCwxLjhWNDloLTIuNXYxMC40aDIuN3YtNC43YzAtMS4yLDAuMS0yLDAuMi0yLjRzMC40LTAuOCwwLjgtMWMwLjQtMC4zLDAuOC0wLjQsMS4zLTAuNA0KCQljMC40LDAsMC43LDAuMSwxLDAuM3MwLjUsMC40LDAuNiwwLjhjMC4xLDAuMywwLjIsMS4xLDAuMiwyLjJ2NS4zaDIuN1Y1M0gzMjB6IE0zMDEuMyw1MS44YzAuNS0wLjUsMS4xLTAuOCwxLjgtMC44DQoJCXMxLjMsMC4zLDEuOCwwLjhzMC43LDEuMywwLjcsMi4zcy0wLjIsMS44LTAuNywyLjRjLTAuNSwwLjUtMS4xLDAuOC0xLjgsMC44cy0xLjMtMC4zLTEuOC0wLjhzLTAuNy0xLjMtMC43LTIuNA0KCQlDMzAwLjUsNTMuMiwzMDAuOCw1Mi40LDMwMS4zLDUxLjggTTI5OC40LDU3LjFjMC41LDAuOCwxLjEsMS41LDIsMS45czEuOCwwLjYsMi43LDAuNmMxLjUsMCwyLjgtMC41LDMuOC0xLjVzMS41LTIuMywxLjUtMy45DQoJCWMwLTEuNi0wLjUtMi44LTEuNS0zLjljLTEtMS0yLjMtMS41LTMuOS0xLjVjLTEsMC0xLjksMC4yLTIuOCwwLjdjLTAuOCwwLjUtMS41LDEuMS0xLjksMnMtMC43LDEuNy0wLjcsMi42DQoJCUMyOTcuNyw1NS4zLDI5Ny45LDU2LjMsMjk4LjQsNTcuMSBNMjg5LjMsNTEuN2MwLjQtMC41LDEtMC44LDEuNy0wLjhjMC42LDAsMS4yLDAuMywxLjYsMC44czAuNywxLjMsMC43LDIuNGMwLDEuMi0wLjIsMi0wLjYsMi41DQoJCXMtMSwwLjgtMS42LDAuOGMtMC43LDAtMS4yLTAuMy0xLjctMC44Yy0wLjUtMC42LTAuNy0xLjQtMC43LTIuNkMyODguNyw1MywyODguOSw1Mi4zLDI4OS4zLDUxLjcgTTI4Niw2My4zaDIuN3YtNS4yDQoJCWMwLjUsMC42LDEsMC45LDEuNSwxLjJjMC41LDAuMiwxLDAuMywxLjYsMC4zYzEuMiwwLDIuMi0wLjUsMy4xLTEuNGMwLjgtMSwxLjMtMi4zLDEuMy00cy0wLjQtMy0xLjMtMy45cy0xLjktMS40LTMuMS0xLjQNCgkJYy0wLjcsMC0xLjMsMC4yLTEuOSwwLjVzLTEsMC43LTEuMywxLjNWNDlIMjg2VjYzLjN6IE0yNzUuNyw1OC44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTFzMS4yLTEuNSwxLjItMi41DQoJCWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNjMC4zLDAuMiwwLjUsMC41LDAuNiwwLjlsMi42LTAuNWMtMC4zLTAuOS0wLjctMS42LTEuNC0yLjFzLTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMyNzQuMyw1Ny40LDI3NC44LDU4LjIsMjc1LjcsNTguOCBNMjY1LjksNTMuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjdzMSwwLjIsMS40LDAuNg0KCQljMC40LDAuNCwwLjYsMSwwLjYsMS44aC00LjFWNTMuM3ogTTI2OS4xLDU3LjJjLTAuMywwLjItMC43LDAuNC0xLjEsMC40Yy0wLjYsMC0xLjItMC4yLTEuNi0wLjdzLTAuNi0xLjEtMC43LTEuOWg2LjkNCgkJYzAtMi4xLTAuNC0zLjctMS4zLTQuN3MtMi4xLTEuNS0zLjctMS41Yy0xLjQsMC0yLjUsMC41LTMuNCwxLjVzLTEuMywyLjMtMS4zLDRjMCwxLjQsMC4zLDIuNiwxLDMuNmMwLjksMS4yLDIuMiwxLjgsNCwxLjgNCgkJYzEuMSwwLDIuMS0wLjMsMi44LTAuOGMwLjgtMC41LDEuMy0xLjMsMS43LTIuM2wtMi43LTAuNUMyNjkuNyw1Ni42LDI2OS40LDU3LDI2OS4xLDU3LjIgTTI1Mi40LDQ3LjVoMi4zYzEuMiwwLDEuOSwwLDIuMSwwDQoJCWMwLjUsMC4xLDAuOCwwLjMsMS4xLDAuNmMwLjMsMC4zLDAuNCwwLjcsMC40LDEuMmMwLDAuNC0wLjEsMC44LTAuMywxLjFjLTAuMiwwLjMtMC41LDAuNS0wLjgsMC42cy0xLjIsMC4yLTIuNiwwLjJoLTIuMXYtMy43DQoJCUgyNTIuNHogTTI1Mi40LDU5LjR2LTZoMC42YzAuNywwLDEuMSwwLjEsMS41LDAuMmMwLjMsMC4xLDAuNiwwLjMsMC45LDAuNmMwLjMsMC4zLDAuOCwxLDEuNSwyLjFsMi4xLDMuMWgzLjVsLTEuNy0yLjgNCgkJYy0wLjctMS4xLTEuMi0xLjktMS42LTIuM2MtMC40LTAuNC0wLjktMC44LTEuNS0xLjJjMS4zLTAuMiwyLjItMC42LDIuOC0xLjNjMC42LTAuNywwLjktMS42LDAuOS0yLjdjMC0wLjgtMC4yLTEuNi0wLjYtMi4zDQoJCXMtMS0xLjEtMS43LTEuNGMtMC43LTAuMy0xLjgtMC40LTMuMy0wLjRoLTYuMXYxNC4zaDIuN1Y1OS40eiIvPg0KCTxwYXRoIGQ9Ik0zNTQuNSwzNS43aC0yLjd2Mi43aDIuN1YzNS43eiBNMzQxLjMsMzcuOGMwLjgsMC42LDEuOSwwLjksMy40LDAuOWMxLjYsMCwyLjctMC4zLDMuNS0xczEuMi0xLjUsMS4yLTIuNQ0KCQljMC0wLjktMC4zLTEuNi0wLjktMmMtMC42LTAuNS0xLjYtMC45LTMuMS0xLjJzLTIuMy0wLjYtMi42LTAuOGMtMC4yLTAuMS0wLjMtMC4zLTAuMy0wLjVzMC4xLTAuNCwwLjMtMC42DQoJCWMwLjMtMC4yLDAuOC0wLjMsMS42LTAuM2MwLjYsMCwxLDAuMSwxLjMsMC4zYzAuMywwLjIsMC41LDAuNSwwLjYsMC45bDIuNi0wLjVjLTAuMy0wLjktMC43LTEuNi0xLjQtMi4xcy0xLjctMC43LTMuMi0wLjcNCgkJcy0yLjYsMC4zLTMuMywwLjljLTAuNywwLjYtMS4xLDEuNC0xLjEsMi4zYzAsMSwwLjQsMS44LDEuMiwyLjNjMC42LDAuNCwyLDAuOCw0LjIsMS4zYzAuNSwwLjEsMC44LDAuMiwwLjksMC40DQoJCWMwLjEsMC4xLDAuMiwwLjMsMC4yLDAuNWMwLDAuMy0wLjEsMC41LTAuNCwwLjdjLTAuNCwwLjMtMC45LDAuNC0xLjYsMC40Yy0wLjYsMC0xLjEtMC4xLTEuNS0wLjRzLTAuNi0wLjctMC43LTEuMmwtMi44LDAuNA0KCQlDMzM5LjksMzYuNCwzNDAuNCwzNy4yLDM0MS4zLDM3LjggTTMzMS41LDMyLjNjMC0wLjcsMC4yLTEuMywwLjYtMS44YzAuNC0wLjQsMC45LTAuNywxLjUtMC43czEsMC4yLDEuNCwwLjZzMC42LDEsMC42LDEuOA0KCQlMMzMxLjUsMzIuM0wzMzEuNSwzMi4zeiBNMzM0LjgsMzYuMmMtMC4zLDAuMi0wLjcsMC40LTEuMSwwLjRjLTAuNiwwLTEuMi0wLjItMS42LTAuN3MtMC42LTEuMS0wLjctMS45aDYuOWMwLTIuMS0wLjQtMy43LTEuMy00LjcNCgkJcy0yLjEtMS41LTMuNy0xLjVjLTEuNCwwLTIuNSwwLjUtMy40LDEuNXMtMS4zLDIuMy0xLjMsNGMwLDEuNCwwLjMsMi42LDEsMy42YzAuOSwxLjIsMi4yLDEuOCw0LDEuOGMxLjEsMCwyLjEtMC4zLDIuOC0wLjgNCgkJYzAuOC0wLjUsMS4zLTEuMywxLjctMi4zbC0yLjctMC41QzMzNS4zLDM1LjYsMzM1LDM2LDMzNC44LDM2LjIgTTMyNS42LDI4LjZjLTAuNy0wLjUtMS44LTAuOC0zLTAuOGMtMS41LDAtMi44LDAuNS0zLjcsMS40DQoJCWMtMC45LDEtMS40LDIuMy0xLjQsNHMwLjUsMywxLjQsNHMyLjEsMS40LDMuNiwxLjRjMS4zLDAsMi40LTAuMywzLjItMC45YzAuOC0wLjYsMS4zLTEuNiwxLjYtMi44bC0yLjctMC41DQoJCWMtMC4xLDAuNy0wLjQsMS4yLTAuNywxLjVjLTAuMywwLjMtMC44LDAuNC0xLjMsMC40Yy0wLjcsMC0xLjMtMC4zLTEuNy0wLjhjLTAuNC0wLjUtMC42LTEuNC0wLjYtMi42YzAtMS4xLDAuMi0xLjksMC42LTIuNA0KCQlzMS0wLjcsMS42LTAuN2MwLjUsMCwwLjksMC4xLDEuMywwLjRjMC4zLDAuMywwLjUsMC43LDAuNiwxLjJsMi43LTAuNUMzMjYuOCwzMCwzMjYuMywyOS4xLDMyNS42LDI4LjYgTTMxMywzNS4yDQoJCWMwLTEuOCwwLjEtMi45LDAuMi0zLjVjMC4yLTAuNiwwLjQtMC45LDAuNi0xLjFjMC4zLTAuMiwwLjYtMC4zLDEtMC4zczAuOCwwLjIsMS4zLDAuNGwwLjktMi40Yy0wLjYtMC4zLTEuMi0wLjUtMS44LTAuNQ0KCQljLTAuNCwwLTAuOCwwLjEtMS4yLDAuM2MtMC4zLDAuMi0wLjcsMC43LTEuMiwxLjRWMjhoLTIuNXYxMC40aDIuN1YzNS4yeiBNMzA3LjYsMzguNFYyOGgtMi43djQuNGMwLDEuNS0wLjEsMi40LTAuMiwyLjgNCgkJYy0wLjEsMC40LTAuNCwwLjctMC44LDFzLTAuOCwwLjQtMS4zLDAuNGMtMC40LDAtMC43LTAuMS0xLTAuM3MtMC41LTAuNS0wLjYtMC44cy0wLjItMS4yLTAuMi0yLjdWMjhoLTIuN3Y2LjYNCgkJYzAsMSwwLjEsMS43LDAuNCwyLjNjMC4yLDAuNiwwLjYsMSwxLjIsMS4zczEuMiwwLjUsMS45LDAuNWMwLjcsMCwxLjMtMC4yLDEuOS0wLjVzMS4xLTAuOCwxLjUtMS4zdjEuNkwzMDcuNiwzOC40TDMwNy42LDM4LjR6DQoJCSBNMjg4LjksMzAuOGMwLjUtMC41LDEuMS0wLjgsMS44LTAuOHMxLjMsMC4zLDEuOCwwLjhzMC43LDEuMywwLjcsMi4zcy0wLjIsMS44LTAuNywyLjRjLTAuNSwwLjUtMS4xLDAuOC0xLjgsMC44DQoJCXMtMS4zLTAuMy0xLjgtMC44cy0wLjctMS4zLTAuNy0yLjRDMjg4LjIsMzIuMiwyODguNCwzMS40LDI4OC45LDMwLjggTTI4NiwzNi4xYzAuNCwwLjgsMS4xLDEuNSwyLDEuOXMxLjgsMC42LDIuNywwLjYNCgkJYzEuNSwwLDIuOC0wLjUsMy44LTEuNXMxLjUtMi4zLDEuNS0zLjljMC0xLjYtMC41LTIuOC0xLjUtMy45Yy0xLTEtMi4zLTEuNS0zLjktMS41Yy0xLDAtMS45LDAuMi0yLjgsMC43Yy0wLjgsMC41LTEuNSwxLjEtMS45LDINCgkJcy0wLjcsMS43LTAuNywyLjZDMjg1LjMsMzQuMywyODUuNiwzNS4zLDI4NiwzNi4xIE0yNzUuNywzNy44YzAuOCwwLjYsMS45LDAuOSwzLjQsMC45YzEuNiwwLDIuNy0wLjMsMy41LTFzMS4yLTEuNSwxLjItMi41DQoJCWMwLTAuOS0wLjMtMS42LTAuOS0yYy0wLjYtMC41LTEuNi0wLjktMy4xLTEuMnMtMi4zLTAuNi0yLjYtMC44Yy0wLjItMC4xLTAuMy0wLjMtMC4zLTAuNXMwLjEtMC40LDAuMy0wLjYNCgkJYzAuMy0wLjIsMC44LTAuMywxLjYtMC4zYzAuNiwwLDEsMC4xLDEuMywwLjNjMC4zLDAuMiwwLjUsMC41LDAuNiwwLjlsMi42LTAuNWMtMC4zLTAuOS0wLjctMS42LTEuNC0yLjFzLTEuNy0wLjctMy4yLTAuNw0KCQlzLTIuNiwwLjMtMy4zLDAuOWMtMC43LDAuNi0xLjEsMS40LTEuMSwyLjNjMCwxLDAuNCwxLjgsMS4yLDIuM2MwLjYsMC40LDIsMC44LDQuMiwxLjNjMC41LDAuMSwwLjgsMC4yLDAuOSwwLjQNCgkJYzAuMSwwLjEsMC4yLDAuMywwLjIsMC41YzAsMC4zLTAuMSwwLjUtMC40LDAuN2MtMC40LDAuMy0wLjksMC40LTEuNiwwLjRjLTAuNiwwLTEuMS0wLjEtMS41LTAuNHMtMC42LTAuNy0wLjctMS4ybC0yLjgsMC40DQoJCUMyNzQuMywzNi40LDI3NC44LDM3LjIsMjc1LjcsMzcuOCBNMjY1LjksMzIuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjdzMSwwLjIsMS40LDAuNnMwLjYsMSwwLjYsMS44DQoJCUwyNjUuOSwzMi4zTDI2NS45LDMyLjN6IE0yNjkuMSwzNi4yYy0wLjMsMC4yLTAuNywwLjQtMS4xLDAuNGMtMC42LDAtMS4yLTAuMi0xLjYtMC43cy0wLjYtMS4xLTAuNy0xLjloNi45YzAtMi4xLTAuNC0zLjctMS4zLTQuNw0KCQlzLTIuMS0xLjUtMy43LTEuNWMtMS40LDAtMi41LDAuNS0zLjQsMS41cy0xLjMsMi4zLTEuMyw0YzAsMS40LDAuMywyLjYsMSwzLjZjMC45LDEuMiwyLjIsMS44LDQsMS44YzEuMSwwLDIuMS0wLjMsMi44LTAuOA0KCQljMC44LTAuNSwxLjMtMS4zLDEuNy0yLjNsLTIuNy0wLjVDMjY5LjcsMzUuNiwyNjkuNCwzNiwyNjkuMSwzNi4yIE0yNTIuNCwyNi41aDIuM2MxLjIsMCwxLjksMCwyLjEsMGMwLjUsMC4xLDAuOCwwLjMsMS4xLDAuNg0KCQljMC4zLDAuMywwLjQsMC43LDAuNCwxLjJjMCwwLjQtMC4xLDAuOC0wLjMsMS4xYy0wLjIsMC4zLTAuNSwwLjUtMC44LDAuNnMtMS4yLDAuMi0yLjYsMC4yaC0yLjF2LTMuN0gyNTIuNHogTTI1Mi40LDM4LjR2LTZoMC42DQoJCWMwLjcsMCwxLjEsMC4xLDEuNSwwLjJjMC4zLDAuMSwwLjYsMC4zLDAuOSwwLjZjMC4zLDAuMywwLjgsMSwxLjUsMi4xbDIuMSwzLjFoMy41bC0xLjctMi44Yy0wLjctMS4xLTEuMi0xLjktMS42LTIuMw0KCQljLTAuNC0wLjQtMC45LTAuOC0xLjUtMS4yYzEuMy0wLjIsMi4yLTAuNiwyLjgtMS4zYzAuNi0wLjcsMC45LTEuNiwwLjktMi43YzAtMC44LTAuMi0xLjYtMC42LTIuM2MtMC40LTAuNy0xLTEuMS0xLjctMS40DQoJCXMtMS44LTAuNC0zLjMtMC40aC02LjF2MTQuM2gyLjdWMzguNHoiLz4NCgk8cGF0aCBkPSJNMzQ2LjEsMTQuN2gtMi43djIuN2gyLjdWMTQuN3ogTTMzMy45LDkuN2MwLjQtMC41LDEtMC44LDEuNi0wLjhjMC43LDAsMS4yLDAuMywxLjcsMC44YzAuNCwwLjUsMC43LDEuMywwLjcsMi40DQoJCWMwLDEtMC4yLDEuOC0wLjcsMi4zcy0xLDAuOC0xLjcsMC44Yy0wLjYsMC0xLjItMC4zLTEuNi0wLjhzLTAuNi0xLjMtMC42LTIuNFMzMzMuNSwxMC4yLDMzMy45LDkuNyBNMzMwLjgsMTguNA0KCQljMCwwLjksMC40LDEuNywxLjEsMi4zYzAuNywwLjYsMiwwLjksMy43LDAuOWMwLjksMCwxLjctMC4xLDIuMy0wLjNjMC42LTAuMiwxLjEtMC41LDEuNS0wLjhzMC42LTAuOCwwLjktMS40DQoJCWMwLjItMC42LDAuMy0xLjUsMC4zLTIuN1Y3SDMzOHYxLjVjLTAuOC0xLjEtMS45LTEuNy0zLjItMS43Yy0xLjIsMC0yLjMsMC41LTMuMSwxLjRjLTAuOCwwLjktMS4zLDIuMi0xLjMsNGMwLDEuNCwwLjMsMi41LDEsMy41DQoJCWMwLjgsMS4yLDEuOSwxLjgsMy4zLDEuOGMxLjIsMCwyLjMtMC42LDMuMS0xLjd2MS41YzAsMC42LDAsMS0wLjEsMS4zcy0wLjMsMC42LTAuNSwwLjdjLTAuNCwwLjItMC45LDAuMy0xLjYsMC4zDQoJCWMtMC42LDAtMS0wLjEtMS4yLTAuM2MtMC4yLTAuMS0wLjMtMC40LTAuNC0wLjhsLTMuMS0wLjRDMzMwLjgsMTguMiwzMzAuOCwxOC4zLDMzMC44LDE4LjQgTTMyOC4zLDExYzAtMC44LTAuMS0xLjQtMC4yLTEuOA0KCQljLTAuMS0wLjQtMC4zLTAuOC0wLjUtMS4yYy0wLjMtMC4zLTAuNi0wLjYtMS4xLTAuOGMtMC41LTAuMi0xLjEtMC4zLTEuNy0wLjNjLTEuNCwwLTIuNSwwLjYtMy40LDEuOFY3aC0yLjV2MTAuNGgyLjd2LTQuNw0KCQljMC0xLjIsMC4xLTIsMC4yLTIuNHMwLjQtMC44LDAuOC0xYzAuNC0wLjMsMC44LTAuNCwxLjMtMC40YzAuNCwwLDAuNywwLjEsMSwwLjNzMC41LDAuNCwwLjYsMC44YzAuMSwwLjMsMC4yLDEuMSwwLjIsMi4ydjUuM2gyLjcNCgkJVjExSDMyOC4zeiBNMzE2LjEsN2gtMi43djEwLjRoMi43Vjd6IE0zMTYuMSwzLjFoLTIuN3YyLjVoMi43VjMuMXogTTMxMC42LDMuMWgtMi43djE0LjNoMi43VjMuMXogTTMwNC4xLDcuNg0KCQljLTAuNy0wLjUtMS44LTAuOC0zLTAuOGMtMS41LDAtMi44LDAuNS0zLjcsMS40Yy0wLjksMS0xLjQsMi4zLTEuNCw0czAuNSwzLDEuNCw0czIuMSwxLjQsMy42LDEuNGMxLjMsMCwyLjQtMC4zLDMuMi0wLjkNCgkJYzAuOC0wLjYsMS4zLTEuNiwxLjYtMi44bC0yLjctMC41Yy0wLjEsMC43LTAuNCwxLjItMC43LDEuNWMtMC4zLDAuMy0wLjgsMC40LTEuMywwLjRjLTAuNywwLTEuMy0wLjMtMS43LTAuOA0KCQljLTAuNC0wLjUtMC42LTEuNC0wLjYtMi42YzAtMS4xLDAuMi0xLjksMC42LTIuNHMxLTAuNywxLjYtMC43YzAuNSwwLDAuOSwwLjEsMS4zLDAuNGMwLjMsMC4zLDAuNSwwLjcsMC42LDEuMmwyLjctMC41DQoJCUMzMDUuNCw5LDMwNC45LDguMSwzMDQuMSw3LjYgTTI4OC42LDE3LjRjLTAuMiwwLjYtMC40LDEuMS0wLjcsMS40cy0wLjgsMC42LTEuNCwwLjZjLTAuMywwLTAuNywwLTEuMi0wLjFsMC4yLDIuMQ0KCQljMC41LDAuMSwxLDAuMiwxLjYsMC4yYzAuNSwwLDEtMC4xLDEuNC0wLjJzMC44LTAuMywxLTAuNWMwLjMtMC4yLDAuNS0wLjUsMC44LTAuOGMwLjItMC4zLDAuNC0wLjgsMC43LTEuNGwwLjctMS44bDMuNy0xMGgtMi44DQoJCWwtMi40LDcuNEwyODcuNiw3aC0yLjlMMjg4LjYsMTcuNHogTTI4Mi40LDcuNmMtMC43LTAuNS0xLjgtMC44LTMtMC44Yy0xLjUsMC0yLjgsMC41LTMuNywxLjRjLTAuOSwxLTEuNCwyLjMtMS40LDRzMC41LDMsMS40LDQNCgkJczIuMSwxLjQsMy42LDEuNGMxLjMsMCwyLjQtMC4zLDMuMi0wLjljMC44LTAuNiwxLjMtMS42LDEuNi0yLjhsLTIuNy0wLjVjLTAuMSwwLjctMC40LDEuMi0wLjcsMS41Yy0wLjMsMC4zLTAuOCwwLjQtMS4zLDAuNA0KCQljLTAuNywwLTEuMy0wLjMtMS43LTAuOGMtMC40LTAuNS0wLjYtMS40LTAuNi0yLjZjMC0xLjEsMC4yLTEuOSwwLjYtMi40czEtMC43LDEuNi0wLjdjMC41LDAsMC45LDAuMSwxLjMsMC40DQoJCWMwLjMsMC4zLDAuNSwwLjcsMC42LDEuMmwyLjctMC41QzI4My43LDksMjgzLjIsOC4xLDI4Mi40LDcuNiBNMjY1LjksMTEuM2MwLTAuNywwLjItMS4zLDAuNi0xLjhjMC40LTAuNCwwLjktMC43LDEuNS0wLjcNCgkJczEsMC4yLDEuNCwwLjZjMC40LDAuNCwwLjYsMSwwLjYsMS44TDI2NS45LDExLjNMMjY1LjksMTEuM3ogTTI2OS4xLDE1LjJjLTAuMywwLjItMC43LDAuNC0xLjEsMC40Yy0wLjYsMC0xLjItMC4yLTEuNi0wLjcNCgkJcy0wLjYtMS4xLTAuNy0xLjloNi45YzAtMi4xLTAuNC0zLjctMS4zLTQuN3MtMi4xLTEuNS0zLjctMS41Yy0xLjQsMC0yLjUsMC41LTMuNCwxLjVzLTEuMywyLjMtMS4zLDRjMCwxLjQsMC4zLDIuNiwxLDMuNg0KCQljMC45LDEuMiwyLjIsMS44LDQsMS44YzEuMSwwLDIuMS0wLjMsMi44LTAuOGMwLjgtMC41LDEuMy0xLjMsMS43LTIuM2wtMi43LTAuNUMyNjkuNywxNC42LDI2OS40LDE1LDI2OS4xLDE1LjIgTTI1Mi40LDUuNWgyLjMNCgkJYzEuMiwwLDEuOSwwLDIuMSwwYzAuNSwwLjEsMC44LDAuMywxLjEsMC42YzAuMywwLjMsMC40LDAuNywwLjQsMS4yYzAsMC40LTAuMSwwLjgtMC4zLDEuMWMtMC4yLDAuMy0wLjUsMC41LTAuOCwwLjYNCgkJcy0xLjIsMC4yLTIuNiwwLjJoLTIuMVY1LjVIMjUyLjR6IE0yNTIuNCwxNy40di02aDAuNmMwLjcsMCwxLjEsMC4xLDEuNSwwLjJjMC4zLDAuMSwwLjYsMC4zLDAuOSwwLjZjMC4zLDAuMywwLjgsMSwxLjUsMi4xDQoJCWwyLjEsMy4xaDMuNWwtMS43LTIuOGMtMC43LTEuMS0xLjItMS45LTEuNi0yLjNjLTAuNC0wLjQtMC45LTAuOC0xLjUtMS4yYzEuMy0wLjIsMi4yLTAuNiwyLjgtMS4zYzAuNi0wLjcsMC45LTEuNiwwLjktMi43DQoJCWMwLTAuOC0wLjItMS42LTAuNi0yLjNzLTEtMS4xLTEuNy0xLjRTMjU3LjMsMywyNTUuOCwzaC02LjF2MTQuM2gyLjdWMTcuNHoiLz4NCjwvZz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iNC44LDIyLjkgMTUuMSwzNC45IDE1LjEsNDEuMSAyMC45LDQxLjEgMjAuOSwzOC4zIDI1LjYsMzguMyAyNS42LDMxLjggMTQuMywzMS44IDYuNiwyMi45ICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSIyOS42LDMuMyAzNy4xLDEwLjggMzcuMSwxNy43IDI1LjgsMTcuNyAyNS44LDEyIDE0LjUsMTIgMTQuNSwyMS4xIDIwLjgsMjEuMSAyMC44LDE4LjEgMjUuNSwxOC4xIA0KCTM3LDMyLjQgMzcsNDQuNyAyOC42LDUyLjkgMTIuOSw1Mi45IDQuNyw0NC43IDIuOSw0NC43IDE3LjgsNTkuNSAzMi4zLDU5LjUgNDMuOCw0Ny45IDQzLjgsMzguMiAzMS43LDIzIDQzLjUsMjMgNDMuNSwxNS4yIA0KCTMxLjQsMy4zICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSI1My43LDExLjcgNjQsMTEuNyA2NCwxOS41IDYwLDE5LjUgNjAsNDEuMSA1My43LDQxLjEgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjQyLDQ0LjUgNDAuNCw0NC41IDU1LjIsNTkuNCA3MC40LDU5LjQgODEuOSw0Ny43IDgxLjksMzkuNCA3NS4xLDMyLjYgNzUuMSw0NC41IDY2LjgsNTIuOCA1MC4zLDUyLjggDQoJIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjY2LjgsMyA3NS4xLDExLjIgNzUuMSwyMi43IDY1LjQsMjIuNyA3Mi4zLDI5LjYgODEuOSwyOS42IDgxLjksMTYuMSA2OC42LDMgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjkzLjEsMTkuNSA5OS41LDE5LjUgOTkuNSw5LjMgOTMuMSwzICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSI5Mi44LDMxLjggMTA0LjksMzEuOCAxMDQuOSwzOCA5OS4yLDM4IDk5LjIsNTkuNCA4OC44LDU5LjQgODIuMSw1Mi41IDkyLjgsNTIuNSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTE1LjcsMi44IDExNS43LDUyLjUgMTA0LjksNTIuNSAxMTEuOSw1OS40IDEyMi4yLDU5LjQgMTIyLjIsOS4yICIvPg0KPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSIxMzMuOCwxMS43IDE0NC4xLDExLjcgMTQ0LjEsMTkuNSAxNDAuMSwxOS41IDE0MC4xLDQxLjEgMTMzLjgsNDEuMSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTQ3LDMgMTU1LjIsMTEuMSAxNTUuMiw0NC41IDE0Ni45LDUyLjggMTMwLjQsNTIuOCAxMjIuMSw0NC41IDEyMC4zLDQ0LjUgMTM1LjIsNTkuNCAxNTAuNCw1OS40IA0KCTE2Miw0Ny43IDE2MiwxNi40IDE0OC43LDMgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjE3My4yLDIuOCAxNzMuMiw0MS4xIDE3OS43LDQxLjEgMTc5LjcsOSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMTg1LjYsNDEuMSAxOTIsNDcuNSAxOTIsNTkuNCAxNjguOSw1OS40IDE2Mi4xLDUyLjUgMTg1LjUsNTIuNSAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMjA0LjgsMTkuNSAxOTguNSwxOS41IDE5MiwxMS43IDIwOS4yLDExLjcgIi8+DQo8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjIyMC4zLDExLjggMjAzLjgsNDEuMyAyMTEuMiw0MS4zIDIyNi44LDE0LjMgMjI2LjgsOS4yIDIyMC4zLDIuOCAiLz4NCjxwb2x5Z29uIGNsYXNzPSJzdDAiIHBvaW50cz0iMjIwLjMsNDEuMSAyMjYuOCw0Ny41IDIyNi44LDU5LjQgMTk4LjcsNTkuNCAxOTEuOCw1Mi41IDIyMC4zLDUyLjUgIi8+DQo8L3N2Zz4NCg==" alt="Scholz Recycling"></div>
+  <div class="sep"></div>
+  <span class="controls-label">LAYOUT</span>
+  <div id="layout-btns" style="display:flex;gap:4px;"></div>
+  <div class="sep"></div>
+  <button class="btn btn-muted" id="resetViewBtn" style="font-size:11px;">↺ RESET</button>
+  <button class="btn btn-muted" id="addCamBtn" style="font-size:11px;">+ KAMERA</button>
+  <button class="btn btn-muted" id="settingsBtn" style="font-size:11px;">⚙ EINSTELLUNGEN</button>
+  <div id="clock" style="margin-left:auto;"></div>
+  <div class="sep"></div>
+  <div class="user-badge">
+    <span id="hdr-user">–</span>
+    <span class="role-tag" id="hdr-role">–</span>
+  </div>
+  <button class="btn btn-muted" id="adminBtn" style="display:none;font-size:11px;">👤 BENUTZER</button>
+  <button class="btn btn-muted" id="changePwBtn" style="font-size:11px;">🔑</button>
+  <button class="btn btn-muted" id="logoutBtn" style="font-size:11px;">⏻</button>
+</div>
+
+<!-- ── GRID ─────────────────────────────────────────────────────────────── -->
+<div id="grid" class="layout-2x2"></div>
+
+<!-- ── FOOTER ───────────────────────────────────────────────────────────── -->
+<div id="footer">
+  <span>SCHOLZ VIDEOWALL</span>
+  <span style="color:var(--text-dim);opacity:.5;">v1.0.0</span>
+  <span class="online-count" id="ft-online">0 ONLINE</span>
+  <span class="offline-count" id="ft-offline">0 OFFLINE</span>
+</div>
+
+<!-- ── CAMERA MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="camBackdrop">
+  <div class="modal">
+    <h2 id="camModalTitle">KAMERA HINZUFÜGEN</h2>
+    <div class="field"><label>Hersteller</label>
+      <select id="f-vendor">
+        <option value="mobotix">Mobotix</option>
+        <option value="axis">Axis</option>
+        <option value="hikvision">Hikvision</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="field"><label>Name</label><input type="text" id="f-name" placeholder="z.B. Eingang Nord"></div>
+    <div class="field"><label>IP / Hostname</label><input type="text" id="f-host" placeholder="192.168.1.100"></div>
+    <div class="field"><label>Port</label><input type="number" id="f-port" value="80"></div>
+    <div class="field"><label>MJPEG Pfad</label><input type="text" id="f-path" placeholder="/control/faststream.jpg?stream=full"></div>
+    <div class="field"><label>Benutzername</label><input type="text" id="f-user" placeholder="admin"></div>
+    <div class="field"><label>Passwort</label><input type="password" id="f-pass"></div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" id="camCancel">ABBRECHEN</button>
+      <button class="btn btn-accent" id="camSave">SPEICHERN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SETTINGS MODAL ────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="settingsBackdrop">
+  <div class="modal">
+    <h2>EINSTELLUNGEN</h2>
+    <div class="field"><label>Maximale Kameras</label>
+      <select id="s-maxcams">
+        <option value="4">4 Kameras</option>
+        <option value="6">6 Kameras</option>
+        <option value="9">9 Kameras</option>
+        <option value="12">12 Kameras</option>
+      </select>
+    </div>
+    <div class="field" style="margin-top:16px;"><label>Konfiguration exportieren / importieren</label>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="btn btn-muted" id="exportBtn" style="flex:1;font-size:11px;">⬇ EXPORTIEREN</button>
+        <button class="btn btn-muted" id="importBtn" style="flex:1;font-size:11px;">⬆ IMPORTIEREN</button>
+        <input type="file" id="importFile" accept=".yaml,.yml" style="display:none">
+      </div>
+      <div class="field-hint" style="margin-top:6px;">Speichert nur deine eigenen Kameras. Passwörter werden verschlüsselt (AES-256).</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" id="settingsCancel">ABBRECHEN</button>
+      <button class="btn btn-accent" id="settingsSave">SPEICHERN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN PANEL ───────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="adminBackdrop">
+  <div class="modal admin-modal">
+    <h2>BENUTZERVERWALTUNG</h2>
+    <table class="user-table">
+      <thead><tr><th>Benutzername</th><th>Rolle</th><th>Kameras</th><th>Aktionen</th></tr></thead>
+      <tbody id="userTableBody"></tbody>
+    </table>
+    <div class="admin-section">NEUEN BENUTZER ANLEGEN</div>
+    <div class="inline-form">
+      <div class="field"><label>Benutzername</label><input type="text" id="new-uname" placeholder="benutzername"></div>
+      <div class="field"><label>Passwort</label><input type="password" id="new-pw" placeholder="••••••••"></div>
+      <div class="field"><label>Rolle</label>
+        <select id="new-role"><option value="user">Benutzer</option><option value="admin">Admin</option></select>
+      </div>
+      <button class="btn btn-accent" id="createUserBtn" style="white-space:nowrap;">+ ANLEGEN</button>
+    </div>
+    <div class="admin-section">BENUTZERDATENBANK</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-muted" id="exportUsersBtn" style="flex:1;font-size:11px;">⬇ EXPORTIEREN</button>
+      <button class="btn btn-muted" id="importUsersBtn" style="flex:1;font-size:11px;">⬆ IMPORTIEREN</button>
+    </div>
+    <div class="field-hint" style="margin-top:6px;">Exportiert alle Benutzer inkl. Kamera-Konfigurationen.</div>
+    <div class="modal-actions"><button class="btn btn-muted" id="adminClose">SCHLIESSEN</button></div>
+  </div>
+</div>
+
+<!-- ── CHANGE PASSWORD MODAL ─────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="changePwBackdrop">
+  <div class="modal" style="width:360px;">
+    <h2 id="changePwTitle">PASSWORT ÄNDERN</h2>
+    <div id="oldPwWrap" class="field"><label>Aktuelles Passwort</label><input type="password" id="cpw-old"></div>
+    <div class="field"><label>Neues Passwort</label><input type="password" id="cpw-new"></div>
+    <div class="field"><label>Bestätigen</label><input type="password" id="cpw-confirm"></div>
+    <div class="login-error" id="cpw-error"></div>
+    <div class="modal-actions">
+      <button class="btn btn-muted" id="cpwCancel">ABBRECHEN</button>
+      <button class="btn btn-accent" id="cpwSave">SPEICHERN</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// VERSION
+// ═══════════════════════════════════════════════════════════════
+const APP_VERSION = '1.0.0';
+
+// ═══════════════════════════════════════════════════════════════
+// LAYOUT DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+const LAYOUTS = {
+  4:  [
+    { id:'layout-1x1',    title:'1 Kamera',         slots:1,  svg:'<rect x="1" y="1" width="16" height="16" rx="1"/>' },
+    { id:'layout-2x1',    title:'2 nebeneinander',  slots:2,  svg:'<rect x="1" y="1" width="7" height="16" rx="1"/><rect x="10" y="1" width="7" height="16" rx="1"/>' },
+    { id:'layout-2x2',    title:'2×2 Raster',       slots:4,  svg:'<rect x="1" y="1" width="7" height="7" rx="1"/><rect x="10" y="1" width="7" height="7" rx="1"/><rect x="1" y="10" width="7" height="7" rx="1"/><rect x="10" y="10" width="7" height="7" rx="1"/>' },
+    { id:'layout-1plus3', title:'1 groß + 3 klein', slots:4,  svg:'<rect x="1" y="1" width="10" height="16" rx="1"/><rect x="13" y="1" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="13" y="13" width="4" height="4" rx="1"/>' },
+  ],
+  6:  [
+    { id:'layout-1x1',    title:'1 Kamera',         slots:1,  svg:'<rect x="1" y="1" width="16" height="16" rx="1"/>' },
+    { id:'layout-2x2',    title:'2×2 Raster',       slots:4,  svg:'<rect x="1" y="1" width="7" height="7" rx="1"/><rect x="10" y="1" width="7" height="7" rx="1"/><rect x="1" y="10" width="7" height="7" rx="1"/><rect x="10" y="10" width="7" height="7" rx="1"/>' },
+    { id:'layout-3x2',    title:'3×2 Raster',       slots:6,  svg:'<rect x="1" y="1" width="4" height="7" rx="1"/><rect x="7" y="1" width="4" height="7" rx="1"/><rect x="13" y="1" width="4" height="7" rx="1"/><rect x="1" y="10" width="4" height="7" rx="1"/><rect x="7" y="10" width="4" height="7" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/>' },
+    { id:'layout-2x3',    title:'2×3 Raster',       slots:6,  svg:'<rect x="1" y="1" width="7" height="4" rx="1"/><rect x="10" y="1" width="7" height="4" rx="1"/><rect x="1" y="7" width="7" height="4" rx="1"/><rect x="10" y="7" width="7" height="4" rx="1"/><rect x="1" y="13" width="7" height="4" rx="1"/><rect x="10" y="13" width="7" height="4" rx="1"/>' },
+  ],
+  9:  [
+    { id:'layout-2x2',    title:'2×2 Raster',       slots:4,  svg:'<rect x="1" y="1" width="7" height="7" rx="1"/><rect x="10" y="1" width="7" height="7" rx="1"/><rect x="1" y="10" width="7" height="7" rx="1"/><rect x="10" y="10" width="7" height="7" rx="1"/>' },
+    { id:'layout-3x2',    title:'3×2 Raster',       slots:6,  svg:'<rect x="1" y="1" width="4" height="7" rx="1"/><rect x="7" y="1" width="4" height="7" rx="1"/><rect x="13" y="1" width="4" height="7" rx="1"/><rect x="1" y="10" width="4" height="7" rx="1"/><rect x="7" y="10" width="4" height="7" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/>' },
+    { id:'layout-3x3',    title:'3×3 Raster',       slots:9,  svg:'<rect x="1" y="1" width="4" height="4" rx="1"/><rect x="7" y="1" width="4" height="4" rx="1"/><rect x="13" y="1" width="4" height="4" rx="1"/><rect x="1" y="7" width="4" height="4" rx="1"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="1" y="13" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><rect x="13" y="13" width="4" height="4" rx="1"/>' },
+  ],
+  12: [
+    { id:'layout-2x2',    title:'2×2 Raster',       slots:4,  svg:'<rect x="1" y="1" width="7" height="7" rx="1"/><rect x="10" y="1" width="7" height="7" rx="1"/><rect x="1" y="10" width="7" height="7" rx="1"/><rect x="10" y="10" width="7" height="7" rx="1"/>' },
+    { id:'layout-3x3',    title:'3×3 Raster',       slots:9,  svg:'<rect x="1" y="1" width="4" height="4" rx="1"/><rect x="7" y="1" width="4" height="4" rx="1"/><rect x="13" y="1" width="4" height="4" rx="1"/><rect x="1" y="7" width="4" height="4" rx="1"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="1" y="13" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><rect x="13" y="13" width="4" height="4" rx="1"/>' },
+    { id:'layout-4x3',    title:'4×3 Raster',       slots:12, svg:'<rect x="1" y="1" width="3" height="4" rx="1"/><rect x="5" y="1" width="3" height="4" rx="1"/><rect x="9" y="1" width="3" height="4" rx="1"/><rect x="13" y="1" width="4" height="4" rx="1"/><rect x="1" y="7" width="3" height="4" rx="1"/><rect x="5" y="7" width="3" height="4" rx="1"/><rect x="9" y="7" width="3" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="1" y="13" width="3" height="4" rx="1"/><rect x="5" y="13" width="3" height="4" rx="1"/><rect x="9" y="13" width="3" height="4" rx="1"/><rect x="13" y="13" width="4" height="4" rx="1"/>' },
+    { id:'layout-3x4',    title:'3×4 Raster',       slots:12, svg:'<rect x="1" y="1" width="4" height="3" rx="1"/><rect x="7" y="1" width="4" height="3" rx="1"/><rect x="13" y="1" width="4" height="3" rx="1"/><rect x="1" y="5" width="4" height="3" rx="1"/><rect x="7" y="5" width="4" height="3" rx="1"/><rect x="13" y="5" width="4" height="3" rx="1"/><rect x="1" y="9" width="4" height="3" rx="1"/><rect x="7" y="9" width="4" height="3" rx="1"/><rect x="13" y="9" width="4" height="3" rx="1"/><rect x="1" y="13" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><rect x="13" y="13" width="4" height="4" rx="1"/>' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE  (all declared first, no ordering issues)
+// ═══════════════════════════════════════════════════════════════
+let cameras      = [];
+let editingId    = null;
+let maxCams      = 4;
+let activeLayout = 'layout-2x2';
+
+// ── Auth state ──
+let usersDb           = { version:1, users:[] };
+let currentUser       = null;
+let changePwTarget    = null;
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRYPTO – SHA-256 hash + AES-256-GCM encrypt/decrypt
+// ═══════════════════════════════════════════════════════════════
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function deriveKey(password, salt) {
+  const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:310000, hash:'SHA-256' },
+    raw, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+  );
+}
+
+async function aesEncrypt(plaintext, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(password, salt);
+  const ct   = await crypto.subtle.encrypt({name:'AES-GCM',iv}, key, new TextEncoder().encode(plaintext));
+  const out  = new Uint8Array(16+12+ct.byteLength);
+  out.set(salt,0); out.set(iv,16); out.set(new Uint8Array(ct),28);
+  return btoa(String.fromCharCode(...out));
+}
+
+async function aesDecrypt(b64, password) {
+  const buf  = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const key  = await deriveKey(password, buf.slice(0,16));
+  const pt   = await crypto.subtle.decrypt({name:'AES-GCM',iv:buf.slice(16,28)}, key, buf.slice(28));
+  return new TextDecoder().decode(pt);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH – init, login, logout
+// ═══════════════════════════════════════════════════════════════
+async function initAuth() {
+  // Load users from sessionStorage (cleared on tab close)
+  try {
+    const raw = sessionStorage.getItem('svw_users');
+    if (raw) usersDb = JSON.parse(raw);
+  } catch(e) { usersDb = {version:1,users:[]}; }
+
+  // Create default admin if empty
+  if (!usersDb.users || usersDb.users.length === 0) {
+    usersDb.users = [{
+      username: 'admin',
+      role:     'admin',
+      pw_hash:  await sha256('admin'),
+      cameras:  [],
+      maxCams:  4
+    }];
+    saveSession();
+  }
+}
+
+function saveSession() {
+  sessionStorage.setItem('svw_users', JSON.stringify(usersDb));
+}
+
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  if (!username || !password) { errEl.textContent = 'BITTE AUSFÜLLEN'; return; }
+
+  const user = usersDb.users.find(u => u.username === username);
+  if (!user) { errEl.textContent = 'BENUTZER NICHT GEFUNDEN'; return; }
+
+  const hash = await sha256(password);
+  if (hash !== user.pw_hash) { errEl.textContent = 'FALSCHES PASSWORT'; return; }
+
+  // Login success
+  currentUser = user;
+  document.getElementById('login-screen').style.display = 'none';
+
+  cameras      = (user.cameras || []).map(c => ({...c}));
+  maxCams      = user.maxCams || 4;
+  activeLayout = (LAYOUTS[maxCams] || LAYOUTS[4]).find(l => l.id === 'layout-2x2')
+                 ? 'layout-2x2' : (LAYOUTS[maxCams]||LAYOUTS[4])[0].id;
+
+  document.getElementById('hdr-user').textContent = user.username.toUpperCase();
+  const rt = document.getElementById('hdr-role');
+  rt.textContent = user.role === 'admin' ? 'ADMIN' : 'USER';
+  rt.className   = 'role-tag ' + user.role;
+  document.getElementById('adminBtn').style.display = user.role === 'admin' ? '' : 'none';
+
+  renderLayoutButtons();
+  setTimeout(injectResizers, 150);
+  showToast('✓ Willkommen, ' + user.username);
+}
+
+function doLogout() {
+  persistUserCameras();
+  currentUser = null; cameras = []; maxCams = 4;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').textContent = '';
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
+function persistUserCameras() {
+  if (!currentUser) return;
+  const u = usersDb.users.find(u => u.username === currentUser.username);
+  if (u) { u.cameras = cameras.map(c=>({...c})); u.maxCams = maxCams; }
+  saveSession();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════════════════
+function openAdminPanel() {
+  renderUserTable();
+  document.getElementById('adminBackdrop').classList.add('open');
+}
+
+function renderUserTable() {
+  const tbody = document.getElementById('userTableBody');
+  tbody.innerHTML = '';
+  usersDb.users.forEach(u => {
+    const isSelf = u.username === currentUser.username;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escHtml(u.username)}${isSelf ? ' <span style="color:var(--accent);font-size:10px">(ich)</span>' : ''}</td>
+      <td><span class="${u.role==='admin'?'tag-admin':'tag-user'}">${u.role.toUpperCase()}</span></td>
+      <td style="color:var(--text-dim)">${(u.cameras||[]).length}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-muted" style="font-size:10px;padding:3px 8px"
+          onclick="openChangePw('${escHtml(u.username)}')">🔑</button>
+        ${!isSelf ? `<button class="btn btn-muted" style="font-size:10px;padding:3px 8px;color:var(--offline);border-color:var(--offline)"
+          onclick="deleteUser('${escHtml(u.username)}')">✕</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function createUser() {
+  const uname = document.getElementById('new-uname').value.trim();
+  const pw    = document.getElementById('new-pw').value;
+  const role  = document.getElementById('new-role').value;
+  if (!uname || !pw) { alert('Benutzername und Passwort erforderlich.'); return; }
+  if (usersDb.users.find(u => u.username === uname)) { alert('Benutzername bereits vergeben.'); return; }
+  if (pw.length < 4) { alert('Mindestens 4 Zeichen.'); return; }
+  usersDb.users.push({ username:uname, role, pw_hash: await sha256(pw), cameras:[], maxCams:4 });
+  saveSession();
+  document.getElementById('new-uname').value = '';
+  document.getElementById('new-pw').value = '';
+  renderUserTable();
+  showToast(`✓ Benutzer "${uname}" angelegt`);
+}
+
+function deleteUser(username) {
+  if (!confirm(`Benutzer "${username}" wirklich löschen?`)) return;
+  usersDb.users = usersDb.users.filter(u => u.username !== username);
+  saveSession(); renderUserTable();
+  showToast(`✓ "${username}" gelöscht`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHANGE PASSWORD
+// ═══════════════════════════════════════════════════════════════
+function openChangePw(targetUsername) {
+  changePwTarget = targetUsername || currentUser.username;
+  const isOwn = changePwTarget === currentUser.username;
+  document.getElementById('changePwTitle').textContent =
+    isOwn ? 'PASSWORT ÄNDERN' : `PASSWORT: ${changePwTarget.toUpperCase()}`;
+  document.getElementById('oldPwWrap').style.display = isOwn ? '' : 'none';
+  ['cpw-old','cpw-new','cpw-confirm'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('cpw-error').textContent = '';
+  document.getElementById('changePwBackdrop').classList.add('open');
+}
+
+async function doChangePw() {
+  const errEl = document.getElementById('cpw-error');
+  const newPw = document.getElementById('cpw-new').value;
+  const conf  = document.getElementById('cpw-confirm').value;
+  errEl.textContent = '';
+  const isOwn = changePwTarget === currentUser.username;
+  if (isOwn) {
+    const oldHash = await sha256(document.getElementById('cpw-old').value);
+    if (oldHash !== currentUser.pw_hash) { errEl.textContent = 'AKTUELLES PASSWORT FALSCH'; return; }
+  }
+  if (newPw.length < 4) { errEl.textContent = 'MINDESTENS 4 ZEICHEN'; return; }
+  if (newPw !== conf)   { errEl.textContent = 'PASSWÖRTER STIMMEN NICHT ÜBEREIN'; return; }
+  const hash = await sha256(newPw);
+  const u = usersDb.users.find(u => u.username === changePwTarget);
+  if (u) { u.pw_hash = hash; if (isOwn) currentUser.pw_hash = hash; }
+  saveSession();
+  document.getElementById('changePwBackdrop').classList.remove('open');
+  showToast('✓ Passwort geändert');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// USERS DB EXPORT / IMPORT (YAML)
+// ═══════════════════════════════════════════════════════════════
+function usersToYaml(db) {
+  const lines = ['# Scholz Videowall – Benutzerdatenbank','version: 1','users:'];
+  for (const u of db.users) {
+    const cams = btoa(unescape(encodeURIComponent(JSON.stringify(u.cameras||[]))));
+    lines.push(`  - username: ${u.username}`);
+    lines.push(`    role:     ${u.role}`);
+    lines.push(`    pw_hash:  ${u.pw_hash}`);
+    lines.push(`    maxcams:  ${u.maxCams||4}`);
+    lines.push(`    cameras:  ${cams}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+function yamlToUsers(text) {
+  const db = {version:1,users:[]};
+  let cur = null;
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd();
+    if (!line || line.trimStart().startsWith('#')) continue;
+    const m = line.match(/^\s{2}-\s+username:\s*(.*)/);
+    if (m) { if(cur) db.users.push(cur); cur={username:m[1].trim(),role:'user',pw_hash:'',cameras:[],maxCams:4}; continue; }
+    if (cur) {
+      const f = line.match(/^\s{4}(\w+):\s*(.*)/);
+      if (f) {
+        if(f[1]==='role')    cur.role    = f[2].trim();
+        if(f[1]==='pw_hash') cur.pw_hash = f[2].trim();
+        if(f[1]==='maxcams') cur.maxCams = parseInt(f[2])||4;
+        if(f[1]==='cameras') { try{ cur.cameras=JSON.parse(decodeURIComponent(escape(atob(f[2].trim())))); }catch{cur.cameras=[];} }
+      }
+    }
+  }
+  if(cur) db.users.push(cur);
+  return db;
+}
+
+function exportUsersDb() {
+  persistUserCameras();
+  const blob = new Blob([usersToYaml(usersDb)], {type:'text/yaml'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'Scholz-Videowall-Users.yaml'; a.click();
+  showToast('✓ Benutzerdatenbank exportiert');
+}
+
+function importUsersDb() {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='.yaml,.yml';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const db = yamlToUsers(ev.target.result);
+        if(!db.users.length) throw new Error('Keine Benutzer');
+        if(!confirm(`${db.users.length} Benutzer importieren?`)) return;
+        usersDb = db; saveSession(); renderUserTable();
+        showToast(`✓ ${db.users.length} Benutzer importiert`);
+      } catch(err) { alert('Fehler: '+err.message); }
+    };
+    r.readAsText(f);
+  };
+  inp.click();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMERA CONFIG EXPORT / IMPORT (YAML + AES-256)
+// ═══════════════════════════════════════════════════════════════
+function camToYaml(config) {
+  const lines = ['version: 2',``,`settings:`,`  max_cameras: ${config.maxCams}`,``,`cameras:`];
+  config.cameras.forEach(c => {
+    lines.push(`  - name:   ${c.name}`);
+    lines.push(`    vendor: ${c.vendor||'custom'}`);
+    lines.push(`    host:   ${c.host}`);
+    lines.push(`    port:   ${c.port}`);
+    lines.push(`    path:   ${c.path}`);
+    lines.push(`    id:     ${c.id}`);
+    lines.push('');
+  });
+  if (config.enc_creds) {
+    lines.push('# Passwörter AES-256-GCM verschlüsselt');
+    lines.push(`enc_creds: ${config.enc_creds}`);
+  } else {
+    lines.push('enc_creds: ~');
+  }
+  return lines.join('\n');
+}
+
+function yamlToCam(text) {
+  const cfg = {maxCams:4, cameras:[], enc_creds:null};
+  let cur = null, inCams = false;
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd();
+    if (!line || line.trimStart().startsWith('#')) continue;
+    if (!line.startsWith(' ')) {
+      inCams = line.startsWith('cameras:');
+      const m = line.match(/^(\w+):\s*(.*)/);
+      if (m && m[1]==='enc_creds' && m[2]!=='~') cfg.enc_creds = m[2].trim();
+      continue;
+    }
+    const sm = line.match(/^\s{2}max_cameras:\s*(\d+)/);
+    if (sm) { cfg.maxCams = parseInt(sm[1]); continue; }
+    if (inCams) {
+      const nm = line.match(/^\s{2}-\s+name:\s*(.*)/);
+      if (nm) { if(cur) cfg.cameras.push(cur); cur={name:nm[1].trim(),vendor:'custom',host:'',port:80,path:'',id:''}; continue; }
+      if (cur) {
+        const f = line.match(/^\s{4}(\w+):\s*(.*)/);
+        if (f) {
+          if(f[1]==='vendor') cur.vendor=f[2].trim();
+          if(f[1]==='host')   cur.host=f[2].trim();
+          if(f[1]==='port')   cur.port=parseInt(f[2])||80;
+          if(f[1]==='path')   cur.path=f[2].trim();
+          if(f[1]==='id')     cur.id=f[2].trim();
+        }
+      }
+    }
+  }
+  if(cur) cfg.cameras.push(cur);
+  return cfg;
+}
+
+async function exportCamConfig() {
+  const safeCams = cameras.map(c=>({id:c.id,name:c.name,host:c.host,port:c.port,vendor:c.vendor,path:c.path}));
+  const pwMap = {};
+  cameras.forEach(c => { if(c.user||c.pass) pwMap[c.id]={user:c.user,pass:c.pass}; });
+  let enc_creds = null;
+  if (Object.keys(pwMap).length > 0) {
+    const pw = prompt('Passwort zum Verschlüsseln der Zugangsdaten:');
+    if (pw===null) return;
+    if (pw.length<4) { alert('Mindestens 4 Zeichen'); return; }
+    enc_creds = await aesEncrypt(JSON.stringify(pwMap), pw);
+  }
+  const yaml = camToYaml({maxCams, cameras:safeCams, enc_creds});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([yaml],{type:'text/yaml'}));
+  a.download = 'Scholz-Videowall.yaml'; a.click();
+  showToast('✓ Konfiguration exportiert');
+}
+
+async function importCamConfig(file) {
+  const text = await file.text();
+  const cfg  = yamlToCam(text);
+  let cams   = cfg.cameras.map(c=>(({...c,user:'',pass:''})));
+  if (cfg.enc_creds) {
+    const pw = prompt('Passwort zum Entschlüsseln:');
+    if (pw===null) return;
+    try {
+      const pwMap = JSON.parse(await aesDecrypt(cfg.enc_creds, pw));
+      cams = cams.map(c=>(({...c,user:pwMap[c.id]?.user||'',pass:pwMap[c.id]?.pass||''})));
+    } catch { if(!confirm('Falsches Passwort – ohne Zugangsdaten importieren?')) return; }
+  }
+  if (!confirm(`${cams.length} Kamera(s) importieren?`)) return;
+  cameras = cams; maxCams = cfg.maxCams||4;
+  document.getElementById('s-maxcams').value = maxCams;
+  document.getElementById('settingsBackdrop').classList.remove('open');
+  renderLayoutButtons(); persistUserCameras();
+  showToast(`✓ ${cameras.length} Kamera(s) importiert`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('de-DE', {hour12:false});
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ═══════════════════════════════════════════════════════════════
+// LAYOUT BUTTONS
+// ═══════════════════════════════════════════════════════════════
+function renderLayoutButtons() {
+  const container = document.getElementById('layout-btns');
+  const defs = LAYOUTS[maxCams] || LAYOUTS[4];
+  container.innerHTML = '';
+  if (!defs.find(d => d.id === activeLayout)) activeLayout = defs.slice(-1)[0].id;
+  defs.forEach(def => {
+    const btn = document.createElement('button');
+    btn.className = 'layout-btn' + (def.id===activeLayout?' active':'');
+    btn.title = def.title;
+    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#c8d0e0" stroke-width="1.5">${def.svg}</svg>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.layout-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeLayout = def.id;
+      applyLayout(def.id, def.slots);
+    });
+    container.appendChild(btn);
+  });
+  const cur = defs.find(d=>d.id===activeLayout)||defs.slice(-1)[0];
+  applyLayout(cur.id, cur.slots);
+}
+
+function applyLayout(layoutId, slots) {
+  const grid = document.getElementById('grid');
+  grid.className = layoutId;
+  grid.style.gridTemplateColumns = '';
+  grid.style.gridTemplateRows    = '';
+  renderGrid(slots);
+  setTimeout(injectResizers, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GRID RENDER
+// ═══════════════════════════════════════════════════════════════
+const VENDORS = {
+  mobotix:   { path:'/control/faststream.jpg?stream=full' },
+  axis:      { path:'/mjpg/video.mjpg' },
+  hikvision: { path:'/streaming/channels/101/httppreview' },
+  custom:    { path:'' },
+};
+
+function renderGrid(slots) {
+  const grid = document.getElementById('grid');
+  if (slots===undefined) {
+    const defs = LAYOUTS[maxCams]||LAYOUTS[4];
+    slots = (defs.find(d=>d.id===activeLayout)||defs.slice(-1)[0]).slots;
+  }
+  // Remove non-resizer children
+  [...grid.children].filter(c=>!c.classList.contains('col-resizer')&&!c.classList.contains('row-resizer'))
+    .forEach(c=>c.remove());
+  for (let i=0;i<slots;i++) {
+    const cam = cameras[i];
+    grid.appendChild(cam ? buildCard(cam) : buildEmpty(i));
+  }
+  updateFooter();
+}
+
+function buildCard(cam) {
+  const div = document.createElement('div');
+  div.className = 'cam-card'; div.id = 'card-'+cam.id;
+  div.innerHTML = `
+    <div class="cam-header">
+      <div class="cam-name-wrap">
+        <div class="status-dot" id="dot-${cam.id}"></div>
+        <span class="cam-name">${escHtml(cam.name)}</span>
+        <span class="vendor-badge">${(cam.vendor||'?').toUpperCase()}</span>
+      </div>
+      <div class="cam-meta">${cam.host}:${cam.port}</div>
+      <div class="cam-actions">
+        <button onclick="openEdit('${cam.id}')">✎</button>
+        <button onclick="toggleFullscreen('${cam.id}')">⛶</button>
+        <button onclick="removeCamera('${cam.id}')">✕</button>
+      </div>
+    </div>
+    <div class="cam-body">
+      <img id="img-${cam.id}" src="${buildStreamUrl(cam)}"
+        onload="onStreamLoad('${cam.id}')" onerror="onStreamError('${cam.id}')">
+      <div class="rec-badge"><span class="rec-dot"></span>LIVE</div>
+      <div class="corner-resizer" onmousedown="startCornerResize(event,'${cam.id}')">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 11L11 3M7 11L11 7M11 11L11 11" stroke="rgba(0,229,255,0.8)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>`;
+  return div;
+}
+
+function buildEmpty(i) {
+  const div = document.createElement('div');
+  div.className = 'cam-card';
+  div.innerHTML = `<div class="cam-body"><div class="cam-placeholder" onclick="openAdd()">
+    <div class="ph-icon">+</div><p>KAMERA HINZUFÜGEN</p></div></div>`;
+  return div;
+}
+
+function buildStreamUrl(cam) {
+  const creds = cam.user ? `${encodeURIComponent(cam.user)}:${encodeURIComponent(cam.pass)}@` : '';
+  return `http://${creds}${cam.host}:${cam.port}${cam.path}`;
+}
+
+function onStreamLoad(id) {
+  const dot = document.getElementById('dot-'+id); if(dot) { dot.classList.add('online'); dot.classList.remove('offline'); }
+  updateFooter();
+}
+function onStreamError(id) {
+  const dot = document.getElementById('dot-'+id); if(dot) { dot.classList.add('offline'); dot.classList.remove('online'); }
+  const img = document.getElementById('img-'+id);
+  if(img) setTimeout(()=>{ img.src = img.src.split('?')[0]+'?t='+Date.now(); }, 5000);
+  updateFooter();
+}
+
+function updateFooter() {
+  const on  = document.querySelectorAll('.status-dot.online').length;
+  const off = document.querySelectorAll('.status-dot.offline').length;
+  document.getElementById('ft-online').textContent  = on  + ' ONLINE';
+  document.getElementById('ft-offline').textContent = off + ' OFFLINE';
+}
+
+function toggleFullscreen(id) {
+  const card = document.getElementById('card-'+id); if(!card) return;
+  card.classList.toggle('fullscreen-active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CAMERA MODAL
+// ═══════════════════════════════════════════════════════════════
+function onVendorChange() {
+  const v    = document.getElementById('f-vendor').value;
+  const path = document.getElementById('f-path');
+  const isCustom = v === 'custom';
+  path.readOnly = !isCustom;
+  path.style.opacity = isCustom ? '1' : '0.6';
+  if (!isCustom) path.value = VENDORS[v]?.path || '';
+}
+
+function openAdd() {
+  if (cameras.length >= maxCams) { alert(`Maximal ${maxCams} Kameras.`); return; }
+  editingId = null;
+  document.getElementById('camModalTitle').textContent = 'KAMERA HINZUFÜGEN';
+  document.getElementById('f-name').value  = '';
+  document.getElementById('f-host').value  = '';
+  document.getElementById('f-port').value  = '80';
+  document.getElementById('f-user').value  = '';
+  document.getElementById('f-pass').value  = '';
+  document.getElementById('f-vendor').value = 'mobotix';
+  onVendorChange();
+  document.getElementById('camBackdrop').classList.add('open');
+}
+
+function openEdit(id) {
+  const cam = cameras.find(c=>c.id===id); if(!cam) return;
+  editingId = id;
+  document.getElementById('camModalTitle').textContent = 'KAMERA BEARBEITEN';
+  document.getElementById('f-name').value   = cam.name;
+  document.getElementById('f-host').value   = cam.host;
+  document.getElementById('f-port').value   = cam.port;
+  document.getElementById('f-user').value   = cam.user||'';
+  document.getElementById('f-pass').value   = cam.pass||'';
+  document.getElementById('f-vendor').value = cam.vendor||'custom';
+  onVendorChange();
+  document.getElementById('f-path').value   = cam.path;
+  document.getElementById('camBackdrop').classList.add('open');
+}
+
+function closeCamModal() {
+  document.getElementById('camBackdrop').classList.remove('open');
+}
+
+function saveCamera() {
+  const name   = document.getElementById('f-name').value.trim();
+  const host   = document.getElementById('f-host').value.trim();
+  const port   = parseInt(document.getElementById('f-port').value)||80;
+  const vendor = document.getElementById('f-vendor').value;
+  const path   = document.getElementById('f-path').value.trim() || VENDORS[vendor]?.path||'/';
+  const user   = document.getElementById('f-user').value.trim();
+  const pass   = document.getElementById('f-pass').value;
+  if (!name||!host) { alert('Name und IP erforderlich.'); return; }
+  if (editingId) {
+    const c = cameras.find(c=>c.id===editingId);
+    if(c) Object.assign(c,{name,host,port,vendor,path,user,pass});
+  } else {
+    cameras.push({id:'cam_'+Date.now(),name,host,port,vendor,path,user,pass});
+  }
+  closeCamModal(); renderGrid(); persistUserCameras();
+}
+
+function removeCamera(id) {
+  cameras = cameras.filter(c=>c.id!==id);
+  renderGrid(); persistUserCameras();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GRID RESIZING
+// ═══════════════════════════════════════════════════════════════
+function injectResizers() {
+  const grid = document.getElementById('grid');
+  grid.querySelectorAll('.col-resizer,.row-resizer').forEach(r=>r.remove());
+  const style = window.getComputedStyle(grid);
+  const cols  = style.gridTemplateColumns.split(' ').filter(Boolean);
+  const rows  = style.gridTemplateRows.split(' ').filter(Boolean);
+  const pad   = 12;
+  let x = pad;
+  for(let i=0;i<cols.length-1;i++) {
+    x += parseFloat(cols[i]);
+    const d = document.createElement('div'); d.className='col-resizer'; d.style.left=x+'px';
+    d.addEventListener('mousedown', e=>startColResize(e,i)); grid.appendChild(d); x+=8;
+  }
+  let y = pad;
+  for(let i=0;i<rows.length-1;i++) {
+    y += parseFloat(rows[i]);
+    const d = document.createElement('div'); d.className='row-resizer'; d.style.top=y+'px';
+    d.addEventListener('mousedown', e=>startRowResize(e,i)); grid.appendChild(d); y+=8;
+  }
+}
+
+function startColResize(e,ci) {
+  e.preventDefault();
+  const grid=document.getElementById('grid'), style=window.getComputedStyle(grid);
+  const cols=style.gridTemplateColumns.split(' ').map(parseFloat);
+  const sx=e.clientX, a0=cols[ci], b0=cols[ci+1];
+  e.currentTarget.classList.add('dragging');
+  const h=e.currentTarget;
+  const mv=e=>{ const dx=e.clientX-sx,nc=[...cols]; nc[ci]=Math.max(80,a0+dx); nc[ci+1]=Math.max(80,b0-dx); grid.style.gridTemplateColumns=nc.map(v=>v+'px').join(' '); };
+  const up=()=>{ h.classList.remove('dragging'); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); injectResizers(); };
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+}
+
+function startRowResize(e,ri) {
+  e.preventDefault();
+  const grid=document.getElementById('grid'), style=window.getComputedStyle(grid);
+  const rows=style.gridTemplateRows.split(' ').map(parseFloat);
+  const sy=e.clientY, a0=rows[ri], b0=rows[ri+1];
+  e.currentTarget.classList.add('dragging');
+  const h=e.currentTarget;
+  const mv=e=>{ const dy=e.clientY-sy,nr=[...rows]; nr[ri]=Math.max(60,a0+dy); nr[ri+1]=Math.max(60,b0-dy); grid.style.gridTemplateRows=nr.map(v=>v+'px').join(' '); };
+  const up=()=>{ h.classList.remove('dragging'); document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); injectResizers(); };
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+}
+
+function startCornerResize(e,id) {
+  e.preventDefault(); e.stopPropagation();
+  const card=document.getElementById('card-'+id); if(!card) return;
+  const sx=e.clientX, sy=e.clientY, sw=card.offsetWidth, sh=card.offsetHeight;
+  const mv=e=>{ card.style.minWidth=Math.max(80,sw+e.clientX-sx)+'px'; card.style.minHeight=Math.max(60,sh+e.clientY-sy)+'px'; };
+  const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+}
+
+const _ro = new ResizeObserver(()=>injectResizers());
+_ro.observe(document.getElementById('grid'));
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════
+
+// Login
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+// Header
+document.getElementById('logoutBtn').addEventListener('click', doLogout);
+document.getElementById('adminBtn').addEventListener('click', openAdminPanel);
+document.getElementById('changePwBtn').addEventListener('click', ()=>openChangePw());
+document.getElementById('addCamBtn').addEventListener('click', openAdd);
+document.getElementById('resetViewBtn').addEventListener('click', ()=>{
+  activeLayout = 'layout-2x2';
+  const grid = document.getElementById('grid');
+  grid.style.gridTemplateColumns=''; grid.style.gridTemplateRows='';
+  document.querySelectorAll('.cam-card').forEach(c=>{ c.style.minWidth=''; c.style.minHeight=''; });
+  renderLayoutButtons();
+});
+
+// Camera modal
+document.getElementById('camCancel').addEventListener('click', closeCamModal);
+document.getElementById('camSave').addEventListener('click', saveCamera);
+document.getElementById('camBackdrop').addEventListener('click', e=>{ if(e.target===document.getElementById('camBackdrop')) closeCamModal(); });
+document.getElementById('f-vendor').addEventListener('change', onVendorChange);
+
+// Settings
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('s-maxcams').value = maxCams;
+  document.getElementById('settingsBackdrop').classList.add('open');
+});
+document.getElementById('settingsCancel').addEventListener('click', ()=>document.getElementById('settingsBackdrop').classList.remove('open'));
+document.getElementById('settingsBackdrop').addEventListener('click', e=>{ if(e.target===document.getElementById('settingsBackdrop')) document.getElementById('settingsBackdrop').classList.remove('open'); });
+document.getElementById('settingsSave').addEventListener('click', ()=>{
+  const nm = parseInt(document.getElementById('s-maxcams').value);
+  if (cameras.length>nm && !confirm(`${cameras.length} Kameras konfiguriert. Auf ${nm} reduzieren?`)) return;
+  if (cameras.length>nm) cameras = cameras.slice(0,nm);
+  maxCams = nm; activeLayout = (LAYOUTS[maxCams]||LAYOUTS[4]).find(l=>l.id==='layout-2x2') ? 'layout-2x2' : (LAYOUTS[maxCams]||LAYOUTS[4])[0].id;
+  document.getElementById('settingsBackdrop').classList.remove('open');
+  renderLayoutButtons(); persistUserCameras();
+});
+document.getElementById('exportBtn').addEventListener('click', exportCamConfig);
+document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', e=>{ if(e.target.files[0]) importCamConfig(e.target.files[0]); e.target.value=''; });
+
+// Admin
+document.getElementById('adminClose').addEventListener('click', ()=>document.getElementById('adminBackdrop').classList.remove('open'));
+document.getElementById('adminBackdrop').addEventListener('click', e=>{ if(e.target===document.getElementById('adminBackdrop')) document.getElementById('adminBackdrop').classList.remove('open'); });
+document.getElementById('createUserBtn').addEventListener('click', createUser);
+document.getElementById('exportUsersBtn').addEventListener('click', exportUsersDb);
+document.getElementById('importUsersBtn').addEventListener('click', importUsersDb);
+
+// Change password
+document.getElementById('cpwCancel').addEventListener('click', ()=>document.getElementById('changePwBackdrop').classList.remove('open'));
+document.getElementById('cpwSave').addEventListener('click', doChangePw);
+document.getElementById('changePwBackdrop').addEventListener('click', e=>{ if(e.target===document.getElementById('changePwBackdrop')) document.getElementById('changePwBackdrop').classList.remove('open'); });
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+initAuth().then(()=>{
+  // Login screen is shown by default (display:flex in HTML)
+  // Dashboard is empty until login
+  renderGrid(4);
+});
+</script>
+</body>
+</html>
