@@ -447,13 +447,16 @@ body { background: var(--bg); color: var(--text); font-family: sans-serif; heigh
 const APP_VERSION = '1.0.0';
 const OFFLINE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 Tage
 
-// Server-URL: automatisch aus aktuellem Hostname ableiten
-// Wenn lokal (file://) → SERVER_URL muss manuell gesetzt sein
+// Server-URL: nur aus localStorage laden oder leer lassen
+// GitHub Pages ist kein API-Server!
 const SERVER_URL = (() => {
   const stored = localStorage.getItem('svw_server_url');
   if (stored) return stored.replace(/\/$/, '');
-  if (location.protocol !== 'file:') return location.origin;
-  return ''; // lokal ohne Server-Konfiguration
+  // Nur als Server verwenden wenn NICHT GitHub Pages
+  if (location.protocol !== 'file:' && !location.hostname.includes('github.io')) {
+    return location.origin;
+  }
+  return ''; // kein Server konfiguriert
 })();
 
 const VERSION_URL = SERVER_URL
@@ -596,14 +599,25 @@ async function checkForUpdate() {
 // OFFLINE CACHE (localStorage)
 // ═══════════════════════════════════════════════════════════════
 function saveOfflineCache(data) {
-  localStorage.setItem('svw_offline_data', JSON.stringify(data));
-  localStorage.setItem('svw_offline_ts',   Date.now().toString());
+  try {
+    localStorage.setItem('svw_offline_data', JSON.stringify(data));
+    localStorage.setItem('svw_offline_ts',   Date.now().toString());
+  } catch(e) {
+    // localStorage nicht verfügbar (z.B. file://) → sessionStorage
+    sessionStorage.setItem('svw_offline_data', JSON.stringify(data));
+    sessionStorage.setItem('svw_offline_ts',   Date.now().toString());
+  }
 }
 
 function loadOfflineCache() {
   try {
-    const raw = localStorage.getItem('svw_offline_data');
-    const ts  = parseInt(localStorage.getItem('svw_offline_ts') || '0');
+    // localStorage bevorzugen, sessionStorage als Fallback
+    const raw = localStorage.getItem('svw_offline_data')
+             || sessionStorage.getItem('svw_offline_data');
+    const ts  = parseInt(
+      localStorage.getItem('svw_offline_ts')
+      || sessionStorage.getItem('svw_offline_ts') || '0'
+    );
     if (!raw) return null;
     return { data: JSON.parse(raw), ts };
   } catch { return null; }
