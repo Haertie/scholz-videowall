@@ -348,7 +348,8 @@ body { background: var(--bg); color: var(--text); font-family: sans-serif; heigh
       <label>App herunterladen</label>
       <div style="display:flex;gap:8px;margin-top:6px;">
         <a id="appDownloadLink" class="btn btn-muted" style="flex:1;font-size:11px;text-decoration:none;text-align:center;"
-          href="https://haertie.github.io/scholz-videowall/" target="_blank">
+          href="https://raw.githubusercontent.com/Haertie/scholz-videowall/main/index.html"
+          download="Scholz-Videowall.html">
           ⬇ AKTUELLE VERSION LADEN
         </a>
       </div>
@@ -535,7 +536,9 @@ async function checkForUpdate() {
       document.getElementById('update-version-info').textContent =
         `v${APP_VERSION} → v${remote}`;
       const link = document.getElementById('update-download-link');
-      link.href = GITHUB_BASE + '/';
+      link.href     = 'https://raw.githubusercontent.com/Haertie/scholz-videowall/main/index.html';
+      link.setAttribute('download', 'Scholz-Videowall.html');
+      link.removeAttribute('target');
       document.getElementById('update-banner').classList.add('show');
       // Also update download link in settings
       document.getElementById('appDownloadLink').textContent = `⬇ VERSION ${remote} LADEN`;
