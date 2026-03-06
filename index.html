@@ -656,12 +656,27 @@ async function initAuth() {
 
   // Offline-Ablauf prüfen
   if (appMode === 'offline' && !offlineCacheValid()) {
+    // Kein Cache vorhanden → lokalen Fallback-Admin anlegen
     const cached = loadOfflineCache();
-    document.getElementById('offline-lock').classList.add('show');
-    document.getElementById('lock-msg').innerHTML =
-      'OFFLINE-ZUGRIFF ABGELAUFEN<br>BITTE MIT SERVER VERBINDEN UND NEU STARTEN<br><br>' +
-      (cached ? `<span style="font-size:10px;color:var(--text-dim)">Letzter Sync: ${new Date(cached.ts).toLocaleDateString('de-DE')}</span>` : '');
-    return;
+    if (!cached) {
+      // Ersten Start ermöglichen mit lokalem Admin
+      const hash = await sha256('admin');
+      const fallback = {
+        user: { id: 0, username: 'admin', role: 'admin', max_cams: 4, pw_hash: hash },
+        cameras: [],
+        token: null,
+        expires_at: new Date(Date.now() + OFFLINE_TTL).toISOString()
+      };
+      saveOfflineCache(fallback);
+      showToast('⚠ Kein Server – lokaler Admin-Modus aktiv');
+    } else {
+      // Cache vorhanden aber abgelaufen → sperren
+      document.getElementById('offline-lock').classList.add('show');
+      document.getElementById('lock-msg').innerHTML =
+        'OFFLINE-ZUGRIFF ABGELAUFEN<br>BITTE MIT SERVER VERBINDEN UND NEU STARTEN<br><br>' +
+        `<span style="font-size:10px;color:var(--text-dim)">Letzter Sync: ${new Date(cached.ts).toLocaleDateString('de-DE')}</span>`;
+      return;
+    }
   }
 
   // Modus-Anzeige im Footer
@@ -699,10 +714,8 @@ async function doLogin() {
     const cached = loadOfflineCache();
     if (!cached) { errEl.textContent = 'KEIN LOKALER CACHE'; return; }
     const { data } = cached;
-    // Passwort gegen gespeicherten Hash prüfen
     const hash = await sha256(password);
     if (data.user.username !== username) { errEl.textContent = 'BENUTZER NICHT GEFUNDEN'; return; }
-    // Im Offline-Cache liegt pw_hash (nur wenn Admin den Cache mit Passwort gespeichert hat)
     if (data.user.pw_hash && hash !== data.user.pw_hash) { errEl.textContent = 'FALSCHES PASSWORT'; return; }
     currentUser = data.user;
     cameras     = (data.cameras || []).map(c => ({...c}));
